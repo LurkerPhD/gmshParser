@@ -18,16 +18,21 @@ void insertBC(XMLElement *root, std::vector<std::string> &name, const int &id, c
 
 XMLElement *QueryElementByAttribute(XMLElement *root, const std::string &Attri_Name, const std::string &value);
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
   /* code */
-
+  char *filename;
+  filename = argv[1];
   XMLDocument *doc = new XMLDocument;
   XMLCreater(doc);
   std::cout << "Step 0\n";
 
-  gmsh::initialize(argc, argv);
-  gmsh::open("t3.msh");
+  int temp1 = 0;
+  char **temp2;
+  gmsh::initialize();
+  if (filename == nullptr)
+    filename = "t3.msh";
+  gmsh::open(filename);
   std::cout << "Step 1\n";
   int dimension = gmsh::model::getDimension();
   gmsh::model::mesh::renumberNodes();
@@ -245,7 +250,7 @@ int main(int argc, char **argv)
     }
   }
   std::cout << "done\n";
-  doc->SaveFile("output.xml");
+  doc->SaveFile(strcat(filename, ".xml"));
   delete doc;
   return 0;
 }
