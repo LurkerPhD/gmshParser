@@ -3,3 +3,5 @@ build/
 
 #ignore .DS_Store in MAC OS system
 .DS_Store
+
+*.xml
