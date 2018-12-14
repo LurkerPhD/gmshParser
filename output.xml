@@ -19,17 +19,14 @@
         </xfem>
     </modelConfig>
     <phases size="0">
-        <phase id="1">
-            <totalTime value="1000"/>
-            <deltaTime value="10"/>
-            <elemNum value="9"/>
+        <phase id="1" totalTime="1000" deltaTime="10" nElem="9">
             <BndryCondition>
                 <Dirichlet>
                     <Ux id="1" type="progressive">
-                        <BCnode id="2" start="P1_Ux_1_start" end="P1_Ux_1_end"/>
-                        <BCnode id="3" start="P1_Ux_1_start" end="P1_Ux_1_end"/>
-                        <BCnode id="11" start="P1_Ux_1_start" end="P1_Ux_1_end"/>
-                        <BCnode id="12" start="P1_Ux_1_start" end="P1_Ux_1_end"/>
+                        <BCnode id="2" start="P1_Ux1_start" end="P1_Ux_1_end"/>
+                        <BCnode id="3" start="P1_Ux1_start" end="P1_Ux_1_end"/>
+                        <BCnode id="11" start="P1_Ux1_start" end="P1_Ux_1_end"/>
+                        <BCnode id="12" start="P1_Ux1_start" end="P1_Ux_1_end"/>
                     </Ux>
                 </Dirichlet>
                 <Neumann/>
