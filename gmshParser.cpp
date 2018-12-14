@@ -112,6 +112,7 @@ int main(int argc, char *argv[])
             elements->InsertEndChild(newElem);
             newElem->SetAttribute("id", elemNum);
             newElem->SetAttribute("mat", mat_ID);
+            newElem->SetAttribute("sides", numNodes);
             for (int k = 0; k < numNodes; k++)
               newElem->SetAttribute(("v" + std::to_string(k + 1)).c_str(),
                                     nodeTags[i][j * numNodes + k]);
@@ -361,7 +362,7 @@ void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id)
   phase->SetAttribute("id", id);
   phase->SetAttribute("totalTime", "1000");
   phase->SetAttribute("deltaTime", "10");
-  phase->SetAttribute("nElem", "10");
+  phase->SetAttribute("nElem", "9");
   {
     // Dirichlet node in phase
     XMLElement *Dirichlet = doc->NewElement("Dirichlet");
