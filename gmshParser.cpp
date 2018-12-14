@@ -27,8 +27,6 @@ int main(int argc, char *argv[])
   XMLCreater(doc);
   std::cout << "Step 0\n";
 
-  int temp1 = 0;
-  char **temp2;
   gmsh::initialize();
   if (filename == nullptr)
     filename = "t3.msh";
@@ -407,7 +405,7 @@ void insertBC(XMLElement *root, std::vector<std::string> &tokens, const int &id,
     XMLElement *newNode = doc->NewElement("BCnode");
     newBC->InsertEndChild(newNode);
     newNode->SetAttribute("id", node);
-    newNode->SetAttribute("start", (tokens[0] + "_" + tokens[1] + "_" + tokens[2] + "_start").c_str());
-    newNode->SetAttribute("end", (tokens[0] + "_" + tokens[1] + "_" + tokens[2] + "_end").c_str());
+    newNode->SetAttribute("start", (tokens[0] + "_" + tokens[1] + tokens[2] + "_start").c_str());
+    newNode->SetAttribute("end", (tokens[0] + "_" + tokens[1] + tokens[2] + "_end").c_str());
   }
 }
