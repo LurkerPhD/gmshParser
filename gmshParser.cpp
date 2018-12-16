@@ -441,28 +441,28 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   XMLElement *Kc = doc->NewElement("Kc");
   mat->InsertEndChild(Kc);
   Kc->SetAttribute("value", "8");
-  XMLElement *Et = doc->NewElement("Et");
-  mat->InsertEndChild(Et);
-  Et->SetAttribute("value", "9");
-  XMLElement *vt = doc->NewElement("vt");
-  mat->InsertEndChild(vt);
-  vt->SetAttribute("value", "10");
-  XMLElement *Eur = doc->NewElement("Eur");
-  mat->InsertEndChild(Eur);
-  Eur->SetAttribute("value", "11");
-  XMLElement *vur = doc->NewElement("vur");
-  mat->InsertEndChild(vur);
-  vur->SetAttribute("value", "12");
+  XMLElement *tModule = doc->NewElement("tModule");
+  mat->InsertEndChild(tModule);
+  tModule->SetAttribute("value", "9");
+  XMLElement *tPoisson = doc->NewElement("tPoisson");
+  mat->InsertEndChild(tPoisson);
+  tPoisson->SetAttribute("value", "10");
+  XMLElement *reModule = doc->NewElement("reModule");
+  mat->InsertEndChild(reModule);
+  reModule->SetAttribute("value", "11");
+  XMLElement *rePoisson = doc->NewElement("rePoisson");
+  mat->InsertEndChild(rePoisson);
+  rePoisson->SetAttribute("value", "12");
   if (type == "elastic")
   {
-    XMLElement *E = doc->NewElement("E");
-    mat->InsertEndChild(E);
-    E->SetAttribute("value", "101");
-    XMLElement *v = doc->NewElement("v");
-    mat->InsertEndChild(v);
-    v->SetAttribute("value", "102");
+    XMLElement *eModule = doc->NewElement("eModule");
+    mat->InsertEndChild(eModule);
+    eModule->SetAttribute("value", "101");
+    XMLElement *ePoisson = doc->NewElement("ePoisson");
+    mat->InsertEndChild(ePoisson);
+    ePoisson->SetAttribute("value", "102");
   }
-  else if (type == "Duncan-Chang")
+  else if (type == "DuncanChang")
   {
     XMLElement *Rf = doc->NewElement("Rf");
     mat->InsertEndChild(Rf);
@@ -483,11 +483,15 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
     mat->InsertEndChild(d);
     d->SetAttribute("value", "206");
   }
-  else if (type == "Cam-Clay")
+  else if (type == "CamClay")
   {
     ;
   }
-  else if (type == "")
+  else if (type == "MohrColumb")
+  {
+    ;
+  }
+  else if (type == "DruckPrager")
   {
     ;
   }
