@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 
   gmsh::initialize();
   if (filename == nullptr)
-    filename = (char*)"t3.msh";
+    filename = (char *)"t3.msh";
   gmsh::open(filename);
   std::cout << "Step 1\n";
   int dimension = gmsh::model::getDimension();
@@ -349,6 +349,7 @@ int XMLCreater(XMLDocument *doc)
     // materials node in problem
     XMLElement *materials = doc->NewElement("materials");
     problem->InsertEndChild(materials);
+    materials->SetAttribute("size", 0);
     // {
     //   materials->SetAttribute("size", 1);
     //   // mat node in materials
@@ -412,6 +413,8 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   if (root->QueryElementByAttribute("mat", "id", std::to_string(id).c_str()))
     return;
   XMLElement *mat = root->FindOrCreatChildElement("mat", "id", std::to_string(id).c_str());
+  int nMat = std::stoi(root->Attribute("size"));
+  root->SetAttribute("size", ++nMat);
   std::string type = tokens[1];
   XMLDocument *doc = root->GetDocument();
   XMLElement *rho = doc->NewElement("rho");
@@ -484,7 +487,7 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   {
     ;
   }
-  else if(type=="")
+  else if (type == "")
   {
     ;
   }
