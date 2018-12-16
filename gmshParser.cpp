@@ -16,6 +16,8 @@ void initialPhase(XMLDocument *doc, XMLElement *problem, const int &id);
 
 void insertBC(XMLElement *root, std::vector<std::string> &name, const int &id, const std::vector<int> &nodeTags);
 
+void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id);
+
 XMLElement *QueryElementByAttribute(XMLElement *root, const std::string &Attri_Name, const std::string &value);
 
 int main(int argc, char *argv[])
@@ -29,7 +31,7 @@ int main(int argc, char *argv[])
 
   gmsh::initialize();
   if (filename == nullptr)
-    filename = "t3.msh";
+    filename = (char*)"t3.msh";
   gmsh::open(filename);
   std::cout << "Step 1\n";
   int dimension = gmsh::model::getDimension();
@@ -67,6 +69,8 @@ int main(int argc, char *argv[])
     XMLElement *elements = doc->FirstChildElement("problem")
                                ->FirstChildElement("mesh")
                                ->FirstChildElement("elements");
+    XMLElement *materials = doc->FirstChildElement("problem")
+                                ->FirstChildElement("materials");
     std::vector<int> elementTypes;
     std::vector<std::vector<int>> elementTags;
     std::vector<std::vector<int>> nodeTags;
@@ -93,9 +97,23 @@ int main(int argc, char *argv[])
         nodeTags.clear();
         gmsh::model::mesh::getElements(elementTypes, elementTags, nodeTags, x.first, x.second);
         gmsh::model::getPhysicalName(dimension, PhyTags[0], PhyName);
-        int mat_pos = PhyName.find("mat");
+        // parsing physical names
+        std::vector<std::string> tokens;
+        std::stringstream ss;
+        ss.str(PhyName);
+        while (ss.good())
+        {
+          std::string substr;
+          std::getline(ss, substr, '_');
+          tokens.push_back(substr);
+        }
+        int mat_pos = tokens[0].find("mat");
         if (mat_pos != std::string::npos)
-          mat_ID = std::stoi(PhyName.substr(mat_pos + 3, 1));
+        {
+          std::string mat_ID_str = tokens[0].substr(mat_pos + 3, 1);
+          mat_ID = std::stoi(mat_ID_str);
+          insertMat(materials, tokens, mat_ID);
+        }
         int elemNum = 0;
         for (int i = 0; i < elementTypes.size(); i++)
         {
@@ -331,14 +349,14 @@ int XMLCreater(XMLDocument *doc)
     // materials node in problem
     XMLElement *materials = doc->NewElement("materials");
     problem->InsertEndChild(materials);
-    {
-      materials->SetAttribute("size", 1);
-      // mat1 node in materials
-      XMLElement *mat1 = doc->NewElement("mat1");
-      materials->InsertEndChild(mat1);
-      mat1->SetAttribute("id", 1);
-      mat1->SetAttribute("type", "elastic");
-    }
+    // {
+    //   materials->SetAttribute("size", 1);
+    //   // mat node in materials
+    //   XMLElement *mat = doc->NewElement("mat");
+    //   materials->InsertEndChild(mat);
+    //   mat->SetAttribute("id", 1);
+    //   mat->SetAttribute("type", "elastic");
+    // }
     // mesh node in problem
     XMLElement *mesh = doc->NewElement("mesh");
     problem->InsertEndChild(mesh);
@@ -387,4 +405,89 @@ void insertBC(XMLElement *root, std::vector<std::string> &tokens, const int &id,
     newNode->SetAttribute("start", (tokens[0] + "_" + tokens[1] + tokens[2] + "_start").c_str());
     newNode->SetAttribute("end", (tokens[0] + "_" + tokens[1] + tokens[2] + "_end").c_str());
   }
+}
+
+void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id)
+{
+  if (root->QueryElementByAttribute("mat", "id", std::to_string(id).c_str()))
+    return;
+  XMLElement *mat = root->FindOrCreatChildElement("mat", "id", std::to_string(id).c_str());
+  std::string type = tokens[1];
+  XMLDocument *doc = root->GetDocument();
+  XMLElement *rho = doc->NewElement("rho");
+  mat->InsertEndChild(rho);
+  rho->SetAttribute("value", "1");
+  XMLElement *fricAngle = doc->NewElement("fricAngle");
+  mat->InsertEndChild(fricAngle);
+  fricAngle->SetAttribute("value", "2");
+  XMLElement *coh = doc->NewElement("coh");
+  mat->InsertEndChild(coh);
+  coh->SetAttribute("value", "3");
+  XMLElement *kx = doc->NewElement("kx");
+  mat->InsertEndChild(kx);
+  kx->SetAttribute("value", "4");
+  XMLElement *ky = doc->NewElement("ky");
+  mat->InsertEndChild(ky);
+  ky->SetAttribute("value", "5");
+  XMLElement *ft = doc->NewElement("ft");
+  mat->InsertEndChild(ft);
+  ft->SetAttribute("value", "6");
+  XMLElement *precon = doc->NewElement("precon");
+  mat->InsertEndChild(precon);
+  precon->SetAttribute("value", "7");
+  XMLElement *Kc = doc->NewElement("Kc");
+  mat->InsertEndChild(Kc);
+  Kc->SetAttribute("value", "8");
+  XMLElement *Et = doc->NewElement("Et");
+  mat->InsertEndChild(Et);
+  Et->SetAttribute("value", "9");
+  XMLElement *vt = doc->NewElement("vt");
+  mat->InsertEndChild(vt);
+  vt->SetAttribute("value", "10");
+  XMLElement *Eur = doc->NewElement("Eur");
+  mat->InsertEndChild(Eur);
+  Eur->SetAttribute("value", "11");
+  XMLElement *vur = doc->NewElement("vur");
+  mat->InsertEndChild(vur);
+  vur->SetAttribute("value", "12");
+  if (type == "elastic")
+  {
+    XMLElement *E = doc->NewElement("E");
+    mat->InsertEndChild(E);
+    E->SetAttribute("value", "101");
+    XMLElement *v = doc->NewElement("v");
+    mat->InsertEndChild(v);
+    v->SetAttribute("value", "102");
+  }
+  else if (type == "Duncan-Chang")
+  {
+    XMLElement *Rf = doc->NewElement("Rf");
+    mat->InsertEndChild(Rf);
+    Rf->SetAttribute("value", "201");
+    XMLElement *k = doc->NewElement("k");
+    mat->InsertEndChild(k);
+    k->SetAttribute("value", "202");
+    XMLElement *n = doc->NewElement("n");
+    mat->InsertEndChild(n);
+    n->SetAttribute("value", "203");
+    XMLElement *G = doc->NewElement("G");
+    mat->InsertEndChild(G);
+    G->SetAttribute("value", "204");
+    XMLElement *F = doc->NewElement("F");
+    mat->InsertEndChild(F);
+    F->SetAttribute("value", "205");
+    XMLElement *d = doc->NewElement("d");
+    mat->InsertEndChild(d);
+    d->SetAttribute("value", "206");
+  }
+  else if (type == "Cam-Clay")
+  {
+    ;
+  }
+  else if(type=="")
+  {
+    ;
+  }
+  mat->SetAttribute("type", type.c_str());
+  return;
 }
