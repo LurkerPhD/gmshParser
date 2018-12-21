@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
             elements->InsertEndChild(newElem);
             newElem->SetAttribute("id", elemNum);
             newElem->SetAttribute("mat", mat_ID);
-            newElem->SetAttribute("sides", numNodes);
+            newElem->SetAttribute("nSide", numNodes);
             for (int k = 0; k < numNodes; k++)
               newElem->SetAttribute(("v" + std::to_string(k + 1)).c_str(),
                                     nodeTags[i][j * numNodes + k]);
@@ -186,6 +186,8 @@ int main(int argc, char *argv[])
         {
           phase = doc->NewElement("phase");
           phases->InsertEndChild(phase);
+          int nPhase = phases->IntAttribute("size");
+          phases->SetAttribute("size", ++nPhase);
           initialPhase(doc, phase, std::stoi(phase_ID));
           phase->SetAttribute("id", phase_ID.c_str());
         }
@@ -193,66 +195,66 @@ int main(int argc, char *argv[])
         if (tokens[1].find("Ux") != std::string::npos)
         {
           // Ux boundary condition
-          XMLElement *entry = phase->FirstChildElement("Dirichlet");
+          //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++Ux_id, nodeTags);
+          insertBC(phase, tokens, ++Ux_id, nodeTags);
           break;
         }
         if (tokens[1].find("Uy") != std::string::npos)
         {
           // Uy boundary condition
-          XMLElement *entry = phase->FirstChildElement("Dirichlet");
+          //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++Uy_id, nodeTags);
+          insertBC(phase, tokens, ++Uy_id, nodeTags);
           break;
         }
         if (tokens[1].find("Uz") != std::string::npos)
         {
           // Uz boundary condition
-          XMLElement *entry = phase->FirstChildElement("Dirichlet");
+          //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++Uz_id, nodeTags);
+          insertBC(phase, tokens, ++Uz_id, nodeTags);
           break;
         }
         if (tokens[1].find("pore") != std::string::npos)
         {
           // pore boundary condition
-          XMLElement *entry = phase->FirstChildElement("Dirichlet");
+          //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++pore_id, nodeTags);
+          insertBC(phase, tokens, ++pore_id, nodeTags);
           break;
         }
         // Neumann detected
         if (tokens[1].find("Fx") != std::string::npos)
         {
           // Fx boundary condition
-          XMLElement *entry = phase->FirstChildElement("Neumann");
+          //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++Fx_id, nodeTags);
+          insertBC(phase, tokens, ++Fx_id, nodeTags);
           break;
         }
         if (tokens[1].find("Fy") != std::string::npos)
         {
           // Fy boundary condition
-          XMLElement *entry = phase->FirstChildElement("Neumann");
+          //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++Fy_id, nodeTags);
+          insertBC(phase, tokens, ++Fy_id, nodeTags);
           break;
         }
         if (tokens[1].find("Fz") != std::string::npos)
         {
           // Fz boundary condition
-          XMLElement *entry = phase->FirstChildElement("Neumann");
+          //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++Fz_id, nodeTags);
+          insertBC(phase, tokens, ++Fz_id, nodeTags);
           break;
         }
         if (tokens[1].find("flow") != std::string::npos)
         {
           // flow boundary condition
-          XMLElement *entry = phase->FirstChildElement("Neumann");
+          //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(entry, tokens, ++flow_id, nodeTags);
+          insertBC(phase, tokens, ++flow_id, nodeTags);
           break;
         }
       }
@@ -382,13 +384,15 @@ void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id)
   phase->SetAttribute("totalTime", "1000");
   phase->SetAttribute("deltaTime", "10");
   phase->SetAttribute("nElem", "9");
-  {
-    // Dirichlet node in phase
-    XMLElement *Dirichlet = doc->NewElement("Dirichlet");
-    phase->InsertEndChild(Dirichlet);
-    XMLElement *Neumann = doc->NewElement("Neumann");
-    phase->InsertEndChild(Neumann);
-  }
+  // {
+  //   // Dirichlet node in phase
+  //   XMLElement *Dirichlet = doc->NewElement("Dirichlet");
+  //   phase->InsertEndChild(Dirichlet);
+  //   Dirichlet->SetAttribute("size", 0);
+  //   XMLElement *Neumann = doc->NewElement("Neumann");
+  //   phase->InsertEndChild(Neumann);
+  //   Neumann->SetAttribute("size", 0);
+  // }
 }
 
 void insertBC(XMLElement *root, std::vector<std::string> &tokens, const int &id, const std::vector<int> &nodeTags)
@@ -396,6 +400,8 @@ void insertBC(XMLElement *root, std::vector<std::string> &tokens, const int &id,
   XMLDocument *doc = root->GetDocument();
   XMLElement *newBC = doc->NewElement(tokens[1].c_str());
   root->InsertEndChild(newBC);
+  int size = root->IntAttribute("size");
+  root->SetAttribute("size", ++size);
   newBC->SetAttribute("id", id);
   newBC->SetAttribute("type", "progressive");
   for (int node : nodeTags)

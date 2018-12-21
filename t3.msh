@@ -4,7 +4,7 @@ $EndMeshFormat
 $PhysicalNames
 2
 1 5 "P1_Ux_1"
-2 1 "mat1_elastic"
+2 1 "mat1_DuncanChang"
 $EndPhysicalNames
 $Entities
 4 4 1 0
