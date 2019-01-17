@@ -12,7 +12,7 @@ using namespace tinyxml2;
 
 int XMLCreater(XMLDocument *doc);
 
-void insertElemType(const char *typeID, XMLElement *elemType);
+void insertElemMetaData(const char *typeID, XMLElement *elemMetaData);
 
 void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id);
 
@@ -22,23 +22,27 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
 
 const char *elemType(const int &dim, const int &nSize);
 
-XMLElement *
-QueryElementByAttribute(XMLElement *root, const std::string &Attri_Name, const std::string &value);
+const std::string elemNameRule(const int &dim, const int &nEdge, const char *interpolation);
+
+XMLElement *QueryElementByAttribute(XMLElement *root, const std::string &Attri_Name, const std::string &value);
 
 int main(int argc, char *argv[])
 {
   /* code */
   char *filename;
-  filename = argv[1];
+  if (argc > 1)
+    filename = argv[1];
+  else
+    filename = "test/test1.msh";
   XMLDocument *doc = new XMLDocument;
   XMLCreater(doc);
-  std::cout << "Step 0\n";
+  std::cout << "xml file created.\n";
 
   gmsh::initialize();
   if (filename == nullptr)
     filename = (char *)"t3.msh";
   gmsh::open(filename);
-  std::cout << "Step 1\n";
+  std::cout << "gmsh file imported.\n";
   int dimension = gmsh::model::getDimension();
   gmsh::model::mesh::renumberNodes();
   gmsh::model::mesh::renumberElements();
@@ -69,14 +73,18 @@ int main(int argc, char *argv[])
         newNode->SetAttribute("z", coord[(inode - 1) * 3 + 2]);
     }
   }
+  std::cout << "node information parsed.\n";
   //get all elements
   {
     XMLElement *elements = doc->FirstChildElement("topology")
                                ->FirstChildElement("elements");
+    // std::cout << "step 0.\n";
+
     XMLElement *materials = doc->FirstChildElement("topology")
                                 ->FirstChildElement("materials");
-    XMLElement *elemType = doc->FirstChildElement("topology")
-                               ->FirstChildElement("elemType");
+    // std::cout << "step 1.\n";
+    XMLElement *elemMetaData = doc->FirstChildElement("topology")
+                                   ->FirstChildElement("elemMetaData");
     std::vector<int> elementTypes;
     std::vector<std::vector<int>> elementTags;
     std::vector<std::vector<int>> nodeTags;
@@ -135,9 +143,11 @@ int main(int argc, char *argv[])
             XMLElement *newElem = doc->NewElement("elem");
             elements->InsertEndChild(newElem);
             newElem->SetAttribute("id", elemNum);
-            std::string type = "C" + std::to_string(dimension) + "D" + std::to_string(numNodes) + "PE";
+            // std::string type = "C" + std::to_string(dimension) + "D" + std::to_string(numNodes) + "PE";
+            std::string type;
+            type = elemNameRule(dimension, numNodes, "Lin");
             newElem->SetAttribute("type", type.c_str());
-            insertElemType(type.c_str(), elemType);
+            insertElemMetaData(type.c_str(), elemMetaData);
             newElem->SetAttribute("mat", mat_ID);
             for (int k = 0; k < numNodes; k++)
               newElem->SetAttribute(("v" + std::to_string(k + 1)).c_str(),
@@ -153,8 +163,9 @@ int main(int argc, char *argv[])
       }
       }
     }
-    elements->SetAttribute("order", 1);
   }
+  std::cout << "element information parsed.\n";
+
   //get all boundary condition information
   {
     XMLElement *phases = doc
@@ -269,19 +280,22 @@ int main(int argc, char *argv[])
       }
     }
   }
-  std::cout << "done\n";
+  std::cout << "boundary condition information parsed.\n";
   doc->SaveFile(strcat(filename, ".xml"));
+  std::cout << "xml file has been written.\n";
   delete doc;
   return 0;
 }
 
-void insertElemType(const char *typeID, XMLElement *elemType)
+void insertElemMetaData(const char *MetaDataID, XMLElement *elemMetaData)
 {
-  if (!elemType->FirstChildElement(typeID))
+  if (!elemMetaData->FirstChildElement(MetaDataID))
   {
-    XMLElement *newElemType = elemType->GetDocument()->NewElement(typeID);
-    elemType->InsertEndChild(newElemType);
-    newElemType->SetAttribute("nGauss", 0);
+    XMLElement *newElemMetaData = elemMetaData->GetDocument()->NewElement(MetaDataID);
+    elemMetaData->InsertEndChild(newElemMetaData);
+    newElemMetaData->SetAttribute("nGauss", 4);
+    int n = (elemMetaData->IntAttribute("size"));
+    elemMetaData->SetAttribute("size", ++n);
   }
   return;
 }
@@ -301,19 +315,22 @@ int XMLCreater(XMLDocument *doc)
     //     doc->NewText("This is a example of input with xml formate");
     // describe->InsertEndChild(describeText);
     describe->SetAttribute("method", "fem");
-    describe->SetAttribute("model", "femSolid");
+    describe->SetAttribute("mode", "static");
+    describe->SetAttribute("solve", "implicit");
+    describe->SetAttribute("couple", "solid");
     describe->SetAttribute("dim", 2);
   }
   // root node start
-  XMLElement *start = doc->NewElement("start");
-  doc->InsertEndChild(start);
-  start->SetAttribute("file", "");
+  XMLElement *breakpoint = doc->NewElement("breakpoint");
+  doc->InsertEndChild(breakpoint);
+  breakpoint->SetAttribute("file", "");
 
   // root node Problem
   // output node in doc
   XMLElement *output = doc->NewElement("output");
   doc->InsertEndChild(output);
   output->SetAttribute("path", "");
+  output->SetAttribute("plot", "mesh+gauss+bc");
   output->SetAttribute("dispAmplifier", 200);
 
   // modelConfig node in doc
@@ -369,10 +386,10 @@ int XMLCreater(XMLDocument *doc)
   XMLElement *mesh = doc->NewElement("topology");
   doc->InsertEndChild(mesh);
   {
-    // elemType node in doc
-    XMLElement *elemType = doc->NewElement("elemType");
-    mesh->InsertEndChild(elemType);
-    elemType->SetAttribute("size", 0);
+    // elemMetaData node in doc
+    XMLElement *elemMetaData = doc->NewElement("elemMetaData");
+    mesh->InsertEndChild(elemMetaData);
+    elemMetaData->SetAttribute("size", 0);
     // materials node in doc
     XMLElement *materials = doc->NewElement("materials");
     mesh->InsertEndChild(materials);
@@ -410,17 +427,17 @@ void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id)
 void insertBC(XMLElement *root, std::vector<std::string> &tokens, const int &id, const std::vector<int> &nodeTags)
 {
   XMLDocument *doc = root->GetDocument();
-  XMLElement *newBC = doc->NewElement(tokens[1].c_str());
+  XMLElement *newBC = doc->NewElement((tokens[1] + "BC").c_str());
   root->InsertEndChild(newBC);
   int BCsize = root->IntAttribute("BCsize");
   root->SetAttribute("BCsize", ++BCsize);
   newBC->SetAttribute("id", id);
-  newBC->SetAttribute("type", "progressive");
+  newBC->SetAttribute("type", "linear");
   for (int node : nodeTags)
   {
-    XMLElement *newNode = doc->NewElement("BCnode");
+    XMLElement *newNode = doc->NewElement(tokens[1].c_str());
     newBC->InsertEndChild(newNode);
-    newNode->SetAttribute("id", node);
+    newNode->SetAttribute("node", node);
     newNode->SetAttribute("start", (tokens[0] + "_" + tokens[1] + tokens[2] + "_start").c_str());
     newNode->SetAttribute("end", (tokens[0] + "_" + tokens[1] + tokens[2] + "_end").c_str());
   }
@@ -561,4 +578,25 @@ const char *elemType(const int &dim, const int &nSize)
     break;
   }
   return "";
+}
+
+const std::string elemNameRule(const int &dim, const int &nEdge, const char *interpolation)
+{
+  std::string dimention;
+  switch (dim)
+  {
+  case 1:
+    dimention = "T";
+    break;
+  case 2:
+    dimention = "PE";
+    break;
+  case 3:
+    dimention = "C";
+    break;
+  default:
+    std::cout << "Error dimension!\n";
+    break;
+  }
+  return dimention + std::to_string(nEdge) + "B" + interpolation;
 }

@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 # TODO: Gmsh should create a cmake file when installing the lib, so all the
 # external dependencies can be obtained automatically
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
+
+project(gmshParser)
 
 find_library(GMSH_LIB gmsh)
 message("there is the gmsh lib :" ${GMSH_LIB})
@@ -34,10 +36,5 @@ endif(WIN32 OR CYGWIN)
 
 include_directories(${GMSH_INC})
 
-# include(CTest)
-
-add_executable(t1 t1.cpp)
-target_link_libraries(t1 ${GMSH_LIB} ${EXTRA_LIBS})
-
-add_executable(gmshParser gmshParser.cpp tinyxml2.cpp)
-target_link_libraries(gmshParser ${GMSH_LIB} ${EXTRA_LIBS})
+add_executable(${PROJECT_NAME} gmshParser.cpp tinyxml2.cpp)
+target_link_libraries(${PROJECT_NAME} ${GMSH_LIB} ${EXTRA_LIBS})
