@@ -502,12 +502,12 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   ePoisson->SetAttribute("value", "12");
   if (type == "elastic")
   {
-    XMLElement *eModule = doc->NewElement("eModule");
-    mat->InsertEndChild(eModule);
-    eModule->SetAttribute("value", "101");
-    XMLElement *ePoisson = doc->NewElement("ePoisson");
-    mat->InsertEndChild(ePoisson);
-    ePoisson->SetAttribute("value", "102");
+    // XMLElement *eModule = doc->NewElement("eModule");
+    // mat->InsertEndChild(eModule);
+    // eModule->SetAttribute("value", "101");
+    // XMLElement *ePoisson = doc->NewElement("ePoisson");
+    // mat->InsertEndChild(ePoisson);
+    // ePoisson->SetAttribute("value", "102");
   }
   else if (type == "DuncanChang")
   {
