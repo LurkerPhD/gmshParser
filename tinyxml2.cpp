@@ -1011,7 +1011,7 @@ XMLElement *XMLNode::QueryElementByAttribute(const char *ChildName, const char *
     XMLElement *child = this->FirstChildElement(ChildName);
     while (child != NULL)
     {
-        if (child->Attribute(AttriName) == AttriValue)
+        if (strcmp(child->Attribute(AttriName), AttriValue) == 0) // == )
             break;
         child = child->NextSiblingElement(); //下一个兄弟节点
     }

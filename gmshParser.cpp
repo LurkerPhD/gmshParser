@@ -33,14 +33,14 @@ int main(int argc, char *argv[])
   if (argc > 1)
     filename = argv[1];
   else
-    filename = "test/test1.msh";
+    filename = "demo/test1.msh";
   XMLDocument *doc = new XMLDocument;
   XMLCreater(doc);
   std::cout << "xml file created.\n";
 
   gmsh::initialize();
   if (filename == nullptr)
-    filename = (char *)"t3.msh";
+    filename = (char *)"demo/test1.msh";
   gmsh::open(filename);
   std::cout << "gmsh file imported.\n";
   int dimension = gmsh::model::getDimension();
@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
                             ->FirstChildElement("nodes");
     for (int inode : nodeTags)
     {
-      int nodeNum = nodes->IntAttribute("size") + 1;
-      nodes->SetAttribute("size", nodeNum);
+      int nodeNum = nodes->IntAttribute("number") + 1;
+      nodes->SetAttribute("number", nodeNum);
       XMLElement *newNode = doc->NewElement("node");
       nodes->InsertEndChild(newNode);
       newNode->SetAttribute("id", nodeNum);
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
           for (int j = 0; j < elementTags[i].size(); j++)
           {
             elemNum++;
-            elements->SetAttribute("size", elemNum);
+            elements->SetAttribute("number", elemNum);
             XMLElement *newElem = doc->NewElement("elem");
             elements->InsertEndChild(newElem);
             newElem->SetAttribute("id", elemNum);
@@ -206,8 +206,8 @@ int main(int argc, char *argv[])
         {
           phase = doc->NewElement("phase");
           phases->InsertEndChild(phase);
-          int nPhase = phases->IntAttribute("size");
-          phases->SetAttribute("size", ++nPhase);
+          int nPhase = phases->IntAttribute("number");
+          phases->SetAttribute("number", ++nPhase);
           initialPhase(doc, phase, std::stoi(phase_ID));
           phase->SetAttribute("id", phase_ID.c_str());
         }
@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++Ux_id, nodeTags);
-          break;
+          continue;
         }
         if (tokens[1].find("Uy") != std::string::npos)
         {
@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++Uy_id, nodeTags);
-          break;
+          continue;
         }
         if (tokens[1].find("Uz") != std::string::npos)
         {
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++Uz_id, nodeTags);
-          break;
+          continue;
         }
         if (tokens[1].find("pore") != std::string::npos)
         {
@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++pore_id, nodeTags);
-          break;
+          continue;
         }
         // Neumann detected
         if (tokens[1].find("Fx") != std::string::npos)
@@ -251,7 +251,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++Fx_id, nodeTags);
-          break;
+          continue;
         }
         if (tokens[1].find("Fy") != std::string::npos)
         {
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++Fy_id, nodeTags);
-          break;
+          continue;
         }
         if (tokens[1].find("Fz") != std::string::npos)
         {
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++Fz_id, nodeTags);
-          break;
+          continue;
         }
         if (tokens[1].find("flow") != std::string::npos)
         {
@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
           //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
           insertBC(phase, tokens, ++flow_id, nodeTags);
-          break;
+          continue;
         }
       }
     }
@@ -294,8 +294,8 @@ void insertElemMetaData(const char *MetaDataID, XMLElement *elemMetaData)
     XMLElement *newElemMetaData = elemMetaData->GetDocument()->NewElement(MetaDataID);
     elemMetaData->InsertEndChild(newElemMetaData);
     newElemMetaData->SetAttribute("nGauss", 4);
-    int n = (elemMetaData->IntAttribute("size"));
-    elemMetaData->SetAttribute("size", ++n);
+    int n = (elemMetaData->IntAttribute("number"));
+    elemMetaData->SetAttribute("number", ++n);
   }
   return;
 }
@@ -315,9 +315,10 @@ int XMLCreater(XMLDocument *doc)
     //     doc->NewText("This is a example of input with xml formate");
     // describe->InsertEndChild(describeText);
     describe->SetAttribute("method", "fem");
-    describe->SetAttribute("mode", "static");
-    describe->SetAttribute("solve", "implicit");
+    describe->SetAttribute("problem", "static");
     describe->SetAttribute("couple", "solid");
+    describe->SetAttribute("equation", "implicit");
+    describe->SetAttribute("solver", "default");
     describe->SetAttribute("dim", 2);
   }
   // root node start
@@ -333,54 +334,59 @@ int XMLCreater(XMLDocument *doc)
   output->SetAttribute("plot", "mesh+gauss+bc");
   output->SetAttribute("dispAmplifier", 200);
 
-  // modelConfig node in doc
-  XMLElement *modelConfig = doc->NewElement("modelConfig");
-  doc->InsertEndChild(modelConfig);
+  // calConfig node in doc
+  XMLElement *calConfig = doc->NewElement("calConfig");
+  doc->InsertEndChild(calConfig);
   {
-    // iterLimit node in modelConfig
-    XMLElement *iterLimit = doc->NewElement("iterLimit");
-    modelConfig->InsertEndChild(iterLimit);
-    iterLimit->SetAttribute("value", 100);
-    // gravity node in modelConfig
+    // iteration node in calConfig
+    XMLElement *iteration = doc->NewElement("iteration");
+    calConfig->InsertEndChild(iteration);
+    iteration->SetAttribute("maxLimit", 100);
+    // loadApply node in calConfig
+    XMLElement *loadApply = doc->NewElement("loadApply");
+    calConfig->InsertEndChild(loadApply);
+    loadApply->SetAttribute("incremental", true);
+    // largeDeform node in calConfig
+    XMLElement *largeDeform = doc->NewElement("largeDeform");
+    calConfig->InsertEndChild(largeDeform);
+    largeDeform->SetAttribute("on", false);
+    // kayMat node in calConfig
+    XMLElement *kayMat = doc->NewElement("kayMat");
+    calConfig->InsertEndChild(kayMat);
+    kayMat->SetAttribute("constant", false); 
+    // gravity node in calConfig
     XMLElement *gravity = doc->NewElement("gravity");
-    modelConfig->InsertEndChild(gravity);
-    gravity->SetAttribute("value", false);
-    // stress_state node in modelConfig
-    XMLElement *stress_state = doc->NewElement("stress_state");
-    modelConfig->InsertEndChild(stress_state);
-    stress_state->SetAttribute("value", "plain_strain");
-    // xfem node in modelConfig
+    calConfig->InsertEndChild(gravity);
+    gravity->SetAttribute("on", false);
+    // xfem node in calConfig
     XMLElement *xfem = doc->NewElement("xfem");
-    modelConfig->InsertEndChild(xfem);
+    calConfig->InsertEndChild(xfem);
     {
       xfem->SetAttribute("active", true);
       // crackSegLength node in xfem
-      XMLElement *crackSegLength = doc->NewElement("crackSegLength");
+      XMLElement *crackSegLength = doc->NewElement("crackSegment");
       xfem->InsertEndChild(crackSegLength);
-      crackSegLength->SetAttribute("value", 0.03);
-      // SIFcal node in xfem
-      XMLElement *SIFcal = doc->NewElement("SIFcal");
-      xfem->InsertEndChild(SIFcal);
-      SIFcal->SetAttribute("value", "Jint");
-      // SIFfactor node in xfem
-      XMLElement *SIFfactor = doc->NewElement("SIFfactor");
-      xfem->InsertEndChild(SIFfactor);
-      SIFfactor->SetAttribute("value", 9);
-      // qShape node in xfem
-      XMLElement *qShape = doc->NewElement("qShape");
-      xfem->InsertEndChild(qShape);
-      qShape->SetAttribute("value", 1);
-      // initialSegment node in xfem
-      XMLElement *initialSegment = doc->NewElement("initialSegment");
-      xfem->InsertEndChild(initialSegment);
-      initialSegment->SetAttribute("size", 0);
+      crackSegLength->SetAttribute("dLength", 0.03);
+      // SIF node in xfem
+      XMLElement *SIF = doc->NewElement("SIF");
+      xfem->InsertEndChild(SIF);
+      SIF->SetAttribute("calMethod", "Jint");
+      {
+        // radiusFactor node in SIF
+        XMLElement *radiusFactor = doc->NewElement("integralRadius");
+        SIF->InsertEndChild(radiusFactor);
+        radiusFactor->SetAttribute("factor", 9);
+        // qShape node in SIF
+        XMLElement *qShape = doc->NewElement("qShape");
+        SIF->InsertEndChild(qShape);
+        qShape->SetAttribute("exponent", 1);
+      }
+      // initCrack node in xfem
+      XMLElement *initCrack = doc->NewElement("initCrack");
+      xfem->InsertEndChild(initCrack);
+      initCrack->SetAttribute("number", 0);
     } // end xfem
-  }   // end modelConfig
-
-  // phases node in doc
-  XMLElement *phases = doc->NewElement("phases");
-  doc->InsertEndChild(phases);
-  phases->SetAttribute("size", 0);
+  }   // end calConfig
 
   // mesh node in doc
   XMLElement *mesh = doc->NewElement("topology");
@@ -389,20 +395,26 @@ int XMLCreater(XMLDocument *doc)
     // elemMetaData node in doc
     XMLElement *elemMetaData = doc->NewElement("elemMetaData");
     mesh->InsertEndChild(elemMetaData);
-    elemMetaData->SetAttribute("size", 0);
+    elemMetaData->SetAttribute("number", 0);
     // materials node in doc
     XMLElement *materials = doc->NewElement("materials");
     mesh->InsertEndChild(materials);
-    materials->SetAttribute("size", 0);
+    materials->SetAttribute("number", 0);
     // nodes node in mesh
     XMLElement *nodes = doc->NewElement("nodes");
     mesh->InsertEndChild(nodes);
-    nodes->SetAttribute("size", 0);
+    nodes->SetAttribute("number", 0);
     // elements node in mesh
     XMLElement *elements = doc->NewElement("elements");
     mesh->InsertEndChild(elements);
-    elements->SetAttribute("size", 0);
+    elements->SetAttribute("number", 0);
   }
+
+  // phases node in doc
+  XMLElement *phases = doc->NewElement("phases");
+  doc->InsertEndChild(phases);
+  phases->SetAttribute("number", 0);
+
   return 0;
 }
 
@@ -412,15 +424,15 @@ void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id)
   phase->SetAttribute("totalTime", "1000");
   phase->SetAttribute("deltaTime", "10");
   phase->SetAttribute("nElem", "9");
-  phase->SetAttribute("BCsize", "0");
+  // phase->SetAttribute("BCnumber", "0");
   // {
   //   // Dirichlet node in phase
   //   XMLElement *Dirichlet = doc->NewElement("Dirichlet");
   //   phase->InsertEndChild(Dirichlet);
-  //   Dirichlet->SetAttribute("size", 0);
+  //   Dirichlet->SetAttribute("number", 0);
   //   XMLElement *Neumann = doc->NewElement("Neumann");
   //   phase->InsertEndChild(Neumann);
-  //   Neumann->SetAttribute("size", 0);
+  //   Neumann->SetAttribute("number", 0);
   // }
 }
 
@@ -448,8 +460,8 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   if (root->QueryElementByAttribute("mat", "id", std::to_string(id).c_str()))
     return;
   XMLElement *mat = root->FindOrCreatChildElement("mat", "id", std::to_string(id).c_str());
-  int nMat = std::stoi(root->Attribute("size"));
-  root->SetAttribute("size", ++nMat);
+  int nMat = std::stoi(root->Attribute("number"));
+  root->SetAttribute("number", ++nMat);
   std::string type = tokens[1];
   XMLDocument *doc = root->GetDocument();
   XMLElement *rho = doc->NewElement("rho");
@@ -482,12 +494,12 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   XMLElement *tPoisson = doc->NewElement("tPoisson");
   mat->InsertEndChild(tPoisson);
   tPoisson->SetAttribute("value", "10");
-  XMLElement *reModule = doc->NewElement("reModule");
-  mat->InsertEndChild(reModule);
-  reModule->SetAttribute("value", "11");
-  XMLElement *rePoisson = doc->NewElement("rePoisson");
-  mat->InsertEndChild(rePoisson);
-  rePoisson->SetAttribute("value", "12");
+  XMLElement *eModule = doc->NewElement("eModule");
+  mat->InsertEndChild(eModule);
+  eModule->SetAttribute("value", "11");
+  XMLElement *ePoisson = doc->NewElement("ePoisson");
+  mat->InsertEndChild(ePoisson);
+  ePoisson->SetAttribute("value", "12");
   if (type == "elastic")
   {
     XMLElement *eModule = doc->NewElement("eModule");
