@@ -1,20 +1,14 @@
-#include <algorithm>
-#include <gmsh.h>
-#include <iostream>
-#include <iterator>
-#include <map>
-#include <sstream>
-#include <string>
-
-#include "tinyxml2.h"
-
-using namespace tinyxml2;
+#include "common.h"
 
 int XMLCreater(XMLDocument *doc);
 
 void insertElemMetaData(const char *typeID, XMLElement *elemMetaData);
 
 void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id);
+
+void insertDirichlet(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags);
+
+void insertNeumann(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags);
 
 void insertBC(XMLElement *root, std::vector<std::string> &name, const int &id, const std::vector<int> &nodeTags);
 
@@ -66,11 +60,11 @@ int main(int argc, char *argv[])
       // newNode->SetAttribute("type", ("femNode" + std::to_string(dimension) + "D").c_str());
       std::vector<int> temp = {(inode - 1) * 3 + 0, (inode - 1) * 3 + 1, (inode - 1) * 3 + 2};
       std::vector<double> temp2 = {coord[(inode - 1) * 3 + 0], coord[(inode - 1) * 3 + 1], coord[(inode - 1) * 3 + 2]};
-      newNode->SetAttribute("x", coord[(inode - 1) * 3 + 0]);
+      newNode->SetAttribute("x1", coord[(inode - 1) * 3 + 0]);
       if (dimension > 1)
-        newNode->SetAttribute("y", coord[(inode - 1) * 3 + 1]);
+        newNode->SetAttribute("x2", coord[(inode - 1) * 3 + 1]);
       if (dimension > 2)
-        newNode->SetAttribute("z", coord[(inode - 1) * 3 + 2]);
+        newNode->SetAttribute("x3", coord[(inode - 1) * 3 + 2]);
     }
   }
   std::cout << "node information parsed.\n";
@@ -168,18 +162,9 @@ int main(int argc, char *argv[])
 
   //get all boundary condition information
   {
-    XMLElement *phases = doc
-                             ->FirstChildElement("phases");
+    XMLElement *phases = doc->FirstChildElement("phases");
     gmsh::vectorpair dimTags;
     gmsh::model::getPhysicalGroups(dimTags);
-    int Ux_id = 0;
-    int Uy_id = 0;
-    int Uz_id = 0;
-    int pore_id = 0;
-    int Fx_id = 0;
-    int Fy_id = 0;
-    int Fz_id = 0;
-    int flow_id = 0;
     for (auto x : dimTags)
     {
       std::string PhyName;
@@ -199,7 +184,7 @@ int main(int argc, char *argv[])
       int P_pos = tokens[0].find("P");
       if (P_pos != std::string::npos)
       {
-        // when phase detected
+        // instablish phase node in xml when phase number detected
         std::string phase_ID = PhyName.substr(P_pos + 1, 1);
         XMLElement *phase = phases->QueryElementByAttribute("phase", "id", phase_ID.c_str());
         if (phase == nullptr)
@@ -212,69 +197,21 @@ int main(int argc, char *argv[])
           phase->SetAttribute("id", phase_ID.c_str());
         }
         // Dirichlet detected
-        if (tokens[1].find("Ux") != std::string::npos)
+        if (tokens[1].find("U") != std::string::npos || tokens[1].find("pore") != std::string::npos)
         {
-          // Ux boundary condition
+          // Dirichlet condition
           //XMLElement *entry = phase->FirstChildElement("Dirichlet");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++Ux_id, nodeTags);
-          continue;
-        }
-        if (tokens[1].find("Uy") != std::string::npos)
-        {
-          // Uy boundary condition
-          //XMLElement *entry = phase->FirstChildElement("Dirichlet");
-          gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++Uy_id, nodeTags);
-          continue;
-        }
-        if (tokens[1].find("Uz") != std::string::npos)
-        {
-          // Uz boundary condition
-          //XMLElement *entry = phase->FirstChildElement("Dirichlet");
-          gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++Uz_id, nodeTags);
-          continue;
-        }
-        if (tokens[1].find("pore") != std::string::npos)
-        {
-          // pore boundary condition
-          //XMLElement *entry = phase->FirstChildElement("Dirichlet");
-          gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++pore_id, nodeTags);
+          insertDirichlet(phase->FirstChildElement("boundaryCondition"), tokens, nodeTags);
           continue;
         }
         // Neumann detected
-        if (tokens[1].find("Fx") != std::string::npos)
+        if (tokens[1].find("F") != std::string::npos || tokens[1].find("flow") != std::string::npos)
         {
-          // Fx boundary condition
+          // Neumann condition
           //XMLElement *entry = phase->FirstChildElement("Neumann");
           gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++Fx_id, nodeTags);
-          continue;
-        }
-        if (tokens[1].find("Fy") != std::string::npos)
-        {
-          // Fy boundary condition
-          //XMLElement *entry = phase->FirstChildElement("Neumann");
-          gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++Fy_id, nodeTags);
-          continue;
-        }
-        if (tokens[1].find("Fz") != std::string::npos)
-        {
-          // Fz boundary condition
-          //XMLElement *entry = phase->FirstChildElement("Neumann");
-          gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++Fz_id, nodeTags);
-          continue;
-        }
-        if (tokens[1].find("flow") != std::string::npos)
-        {
-          // flow boundary condition
-          //XMLElement *entry = phase->FirstChildElement("Neumann");
-          gmsh::model::mesh::getNodesForPhysicalGroup(x.first, x.second, nodeTags, coords);
-          insertBC(phase, tokens, ++flow_id, nodeTags);
+          insertNeumann(phase->FirstChildElement("boundaryCondition"), tokens, nodeTags);
           continue;
         }
       }
@@ -282,6 +219,7 @@ int main(int argc, char *argv[])
   }
   std::cout << "boundary condition information parsed.\n";
   doc->SaveFile(strcat(filename, ".xml"));
+  //doc->SaveFile("demo.xml");
   std::cout << "xml file has been written.\n";
   delete doc;
   return 0;
@@ -331,6 +269,7 @@ int XMLCreater(XMLDocument *doc)
   XMLElement *output = doc->NewElement("output");
   doc->InsertEndChild(output);
   output->SetAttribute("path", "");
+  output->SetAttribute("mode", "vtk");
   output->SetAttribute("plot", "mesh+gauss+bc");
   output->SetAttribute("dispAmplifier", 200);
 
@@ -353,11 +292,19 @@ int XMLCreater(XMLDocument *doc)
     // kayMat node in calConfig
     XMLElement *kayMat = doc->NewElement("kayMat");
     calConfig->InsertEndChild(kayMat);
-    kayMat->SetAttribute("constant", false); 
+    kayMat->SetAttribute("constant", false);
+    // tDiffScheme node in calConfig
+    XMLElement *tDiffScheme = doc->NewElement("tDiffScheme");
+    calConfig->InsertEndChild(tDiffScheme);
+    tDiffScheme->SetAttribute("constant", false);
     // gravity node in calConfig
     XMLElement *gravity = doc->NewElement("gravity");
     calConfig->InsertEndChild(gravity);
     gravity->SetAttribute("on", false);
+    // waterDensity node in calConfig
+    XMLElement *waterDensity = doc->NewElement("waterDensity");
+    calConfig->InsertEndChild(waterDensity);
+    waterDensity->SetAttribute("value", 1);
     // xfem node in calConfig
     XMLElement *xfem = doc->NewElement("xfem");
     calConfig->InsertEndChild(xfem);
@@ -367,6 +314,11 @@ int XMLCreater(XMLDocument *doc)
       XMLElement *crackSegLength = doc->NewElement("crackSegment");
       xfem->InsertEndChild(crackSegLength);
       crackSegLength->SetAttribute("dLength", 0.03);
+      xfem->SetAttribute("active", true);
+      // crackGauss node in xfem
+      XMLElement *crackGauss = doc->NewElement("crackGauss");
+      xfem->InsertEndChild(crackGauss);
+      crackGauss->SetAttribute("number", 4);
       // SIF node in xfem
       XMLElement *SIF = doc->NewElement("SIF");
       xfem->InsertEndChild(SIF);
@@ -381,10 +333,6 @@ int XMLCreater(XMLDocument *doc)
         SIF->InsertEndChild(qShape);
         qShape->SetAttribute("exponent", 1);
       }
-      // initCrack node in xfem
-      XMLElement *initCrack = doc->NewElement("initCrack");
-      xfem->InsertEndChild(initCrack);
-      initCrack->SetAttribute("number", 0);
     } // end xfem
   }   // end calConfig
 
@@ -410,6 +358,24 @@ int XMLCreater(XMLDocument *doc)
     elements->SetAttribute("number", 0);
   }
 
+  // initial condition in doc
+  XMLElement *initCondition = doc->NewElement("initCondition");
+  doc->InsertEndChild(initCondition);
+  // initCrack node in initCondition
+  XMLElement *initCrack = doc->NewElement("initCrack");
+  initCondition->InsertEndChild(initCrack);
+  initCrack->SetAttribute("number", 0);
+  XMLComment *initCrackExample = doc->NewComment("<seg id=\"1\" x0=\"0\" y0=\"0\" x1=\"1\" y1=\"1\"/>");
+  initCrack->InsertEndChild(initCrackExample);
+  // initDisplacement node in initCondition
+  XMLElement *initDisplacement = doc->NewElement("initDisplacement");
+  initCondition->InsertEndChild(initDisplacement);
+  initDisplacement->SetAttribute("number", 0);
+  // initPore node in initCondition
+  XMLElement *initPore = doc->NewElement("initPore");
+  initCondition->InsertEndChild(initPore);
+  initPore->SetAttribute("number", 0);
+
   // phases node in doc
   XMLElement *phases = doc->NewElement("phases");
   doc->InsertEndChild(phases);
@@ -424,16 +390,44 @@ void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id)
   phase->SetAttribute("totalTime", "1000");
   phase->SetAttribute("deltaTime", "10");
   phase->SetAttribute("nElem", "9");
-  // phase->SetAttribute("BCnumber", "0");
-  // {
-  //   // Dirichlet node in phase
-  //   XMLElement *Dirichlet = doc->NewElement("Dirichlet");
-  //   phase->InsertEndChild(Dirichlet);
-  //   Dirichlet->SetAttribute("number", 0);
-  //   XMLElement *Neumann = doc->NewElement("Neumann");
-  //   phase->InsertEndChild(Neumann);
-  //   Neumann->SetAttribute("number", 0);
-  // }
+  XMLElement *newBC = doc->NewElement("boundaryCondition");
+  phase->InsertEndChild(newBC);
+  newBC->SetAttribute("Dirichlet", 0);
+  newBC->SetAttribute("Neumann", 0);
+}
+
+void insertDirichlet(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags)
+{
+  XMLDocument *doc = root->GetDocument();
+  for (int bcNode : nodeTags)
+  {
+    XMLElement *newDirichlet = doc->NewElement("Dirichlet");
+    root->InsertEndChild(newDirichlet);
+    int Dirichlet = root->IntAttribute("Dirichlet");
+    root->SetAttribute("Dirichlet", ++Dirichlet);
+    newDirichlet->SetAttribute("node", bcNode);
+    newDirichlet->SetAttribute("dof", tokens[2].c_str());
+    newDirichlet->SetAttribute("type", "linear");
+    newDirichlet->SetAttribute("start", (tokens[0] + "_" + tokens[1] + "_" + tokens[2] + "_" + tokens[3] + "_start").c_str());
+    newDirichlet->SetAttribute("end", (tokens[0] + "_" + tokens[1] + "_" + tokens[2] + "_" + tokens[3] + "_end").c_str());
+  }
+}
+
+void insertNeumann(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags)
+{
+  XMLDocument *doc = root->GetDocument();
+  for (int bcNode : nodeTags)
+  {
+    XMLElement *newNeumann = doc->NewElement("Neumann");
+    root->InsertEndChild(newNeumann);
+    int Neumann = root->IntAttribute("Neumann");
+    root->SetAttribute("Neumann", ++Neumann);
+    newNeumann->SetAttribute("node", bcNode);
+    newNeumann->SetAttribute("dof", tokens[2].c_str());
+    newNeumann->SetAttribute("type", "linear");
+    newNeumann->SetAttribute("start", (tokens[0] + "_" + tokens[1] + "_" + tokens[2] + "_" + tokens[3] + "_start").c_str());
+    newNeumann->SetAttribute("end", (tokens[0] + "_" + tokens[1] + "_" + tokens[2] + "_" + tokens[3] + "_end").c_str());
+  }
 }
 
 void insertBC(XMLElement *root, std::vector<std::string> &tokens, const int &id, const std::vector<int> &nodeTags)
@@ -466,45 +460,45 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   XMLDocument *doc = root->GetDocument();
   XMLElement *rho = doc->NewElement("rho");
   mat->InsertEndChild(rho);
-  rho->SetAttribute("value", "1");
+  rho->SetAttribute("value", "19");
   XMLElement *fricAngle = doc->NewElement("fricAngle");
   mat->InsertEndChild(fricAngle);
-  fricAngle->SetAttribute("value", "2");
+  fricAngle->SetAttribute("value", "30");
   XMLElement *coh = doc->NewElement("coh");
   mat->InsertEndChild(coh);
-  coh->SetAttribute("value", "3");
+  coh->SetAttribute("value", "10");
   XMLElement *kx = doc->NewElement("kx");
   mat->InsertEndChild(kx);
-  kx->SetAttribute("value", "4");
+  kx->SetAttribute("value", "1e-5");
   XMLElement *ky = doc->NewElement("ky");
   mat->InsertEndChild(ky);
-  ky->SetAttribute("value", "5");
+  ky->SetAttribute("value", "1e-5");
   XMLElement *ft = doc->NewElement("ft");
   mat->InsertEndChild(ft);
-  ft->SetAttribute("value", "6");
+  ft->SetAttribute("value", "15");
   XMLElement *precon = doc->NewElement("precon");
   mat->InsertEndChild(precon);
-  precon->SetAttribute("value", "7");
+  precon->SetAttribute("value", "-10");
   XMLElement *Kc = doc->NewElement("Kc");
   mat->InsertEndChild(Kc);
-  Kc->SetAttribute("value", "8");
-  XMLElement *tModule = doc->NewElement("tModule");
-  mat->InsertEndChild(tModule);
-  tModule->SetAttribute("value", "9");
+  Kc->SetAttribute("value", "2.9");
+  XMLElement *tModulus = doc->NewElement("tModulus");
+  mat->InsertEndChild(tModulus);
+  tModulus->SetAttribute("value", "10000");
   XMLElement *tPoisson = doc->NewElement("tPoisson");
   mat->InsertEndChild(tPoisson);
-  tPoisson->SetAttribute("value", "10");
-  XMLElement *eModule = doc->NewElement("eModule");
-  mat->InsertEndChild(eModule);
-  eModule->SetAttribute("value", "11");
+  tPoisson->SetAttribute("value", "0.3");
+  XMLElement *eModulus = doc->NewElement("eModulus");
+  mat->InsertEndChild(eModulus);
+  eModulus->SetAttribute("value", "10000");
   XMLElement *ePoisson = doc->NewElement("ePoisson");
   mat->InsertEndChild(ePoisson);
-  ePoisson->SetAttribute("value", "12");
+  ePoisson->SetAttribute("value", "0.3");
   if (type == "elastic")
   {
-    // XMLElement *eModule = doc->NewElement("eModule");
-    // mat->InsertEndChild(eModule);
-    // eModule->SetAttribute("value", "101");
+    // XMLElement *eModulus = doc->NewElement("eModulus");
+    // mat->InsertEndChild(eModulus);
+    // eModulus->SetAttribute("value", "101");
     // XMLElement *ePoisson = doc->NewElement("ePoisson");
     // mat->InsertEndChild(ePoisson);
     // ePoisson->SetAttribute("value", "102");
