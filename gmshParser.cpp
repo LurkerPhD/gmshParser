@@ -292,10 +292,10 @@ int createMainFrame(XMLDocument *doc)
   XMLElement *calConfig = doc->NewElement("calculation_configuration");
   doc->InsertEndChild(calConfig);
   {
-    /// gravity node in calConfig
-    XMLElement *gravity = doc->NewElement("gravity");
-    calConfig->InsertEndChild(gravity);
-    gravity->SetAttribute("calculate_scheme", "k0");
+    /// gravity_calculation node in calConfig
+    XMLElement *gravity_calculation = doc->NewElement("gravity_calculation");
+    calConfig->InsertEndChild(gravity_calculation);
+    gravity_calculation->SetAttribute("scheme", "k0");
     /// water_density node in calConfig
     XMLElement *water_density = doc->NewElement("water_density");
     calConfig->InsertEndChild(water_density);
@@ -315,7 +315,7 @@ int createMainFrame(XMLDocument *doc)
       /// stiff_matrix node in time_step
       XMLElement *stiff_matrix = doc->NewElement("stiff_matrix");
       time_step->InsertEndChild(stiff_matrix);
-      stiff_matrix->SetAttribute("mode", "tangent");
+      stiff_matrix->SetAttribute("scheme", "tangent");
       /// stiff_update node in time_step
       XMLElement *stiff_update = doc->NewElement("stiff_update");
       time_step->InsertEndChild(stiff_update);
@@ -342,10 +342,10 @@ int createMainFrame(XMLDocument *doc)
       XMLElement *max_limit = doc->NewElement("max_limit");
       iteration->InsertEndChild(max_limit);
       max_limit->SetAttribute("time", 100);
-      /// body_load node in iteration
-      XMLElement *body_load = doc->NewElement("body_load");
-      iteration->InsertEndChild(body_load);
-      body_load->SetAttribute("scheme", "viscoplasticity");
+      /// nonlin_material node in iteration
+      XMLElement *nonlin_material = doc->NewElement("nonlin_material");
+      iteration->InsertEndChild(nonlin_material);
+      nonlin_material->SetAttribute("scheme", "viscoplasticity");
     }
 
     /// xfem node in calConfig
@@ -412,16 +412,20 @@ int createMainFrame(XMLDocument *doc)
   XMLElement *init_crack = doc->NewElement("init_crack");
   init_condition->InsertEndChild(init_crack);
   init_crack->SetAttribute("number", 0);
-  XMLComment *init_crack_example = doc->NewComment("<seg id=\"1\" x0=\"0\" y0=\"0\" x1=\"1\" y1=\"1\"/>");
+  XMLComment *init_crack_example = doc->NewComment(" <seg id=\"1\" x0=\"0\" y0=\"0\" x1=\"1\" y1=\"1\"/> ");
   init_crack->InsertEndChild(init_crack_example);
   /// init_displacement node in init_condition
   XMLElement *init_displacement = doc->NewElement("init_displacement");
   init_condition->InsertEndChild(init_displacement);
   init_displacement->SetAttribute("number", 0);
+  XMLComment *init_disp_example = doc->NewComment(" <node=\"1\" dof=\"x1\" value=\"some_value\"/> ");
+  init_displacement->InsertEndChild(init_disp_example);
   /// init_pore node in init_condition
   XMLElement *init_pore = doc->NewElement("init_pore");
   init_condition->InsertEndChild(init_pore);
   init_pore->SetAttribute("number", 0);
+  XMLComment *init_pore_example = doc->NewComment(" <node=\"1\" value=\"some_value\"/> ");
+  init_pore->InsertEndChild(init_pore_example);
 
   XMLComment *comment7 = doc->NewComment("7. phase step information");
   doc->InsertEndChild(comment7);
