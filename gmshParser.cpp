@@ -306,10 +306,6 @@ int createMainFrame(XMLDocument *doc)
       XMLElement *stiff_update = doc->NewElement("stiff_update");
       time_step->InsertEndChild(stiff_update);
       stiff_update->SetAttribute("interval", 0);
-      /// memory_for_stiff node in time_step
-      XMLElement *memory_for_stiff = doc->NewElement("memory_for_stiff");
-      time_step->InsertEndChild(memory_for_stiff);
-      memory_for_stiff->SetAttribute("sufficient", false);
       /// time_differential node in time_step
       XMLElement *time_differential = doc->NewElement("time_differential");
       time_step->InsertEndChild(time_differential);
