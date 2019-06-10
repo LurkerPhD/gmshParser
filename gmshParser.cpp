@@ -12,13 +12,13 @@ using namespace tinyxml2;
 
 int createMainFrame(XMLDocument *doc);
 
-void insertElemMetaData(const char *typeID, XMLElement *element_type_data);
+void insertElemMetaData(const char *typeID, XMLElement *element_mega_data);
 
 void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id);
 
-void insertDirichlet(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags);
+void insertDirichlet(XMLElement *root, std::vector<std::string> &tokens, const std::vector<std::size_t> &nodeTags);
 
-void insertNeumann(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags);
+void insertNeumann(XMLElement *root, std::vector<std::string> &tokens, const std::vector<std::size_t> &nodeTags);
 
 void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id);
 
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
   std::cout << "xml file created.\n";
   /// get all nodes
   {
-    std::vector<int> nodeTags;
+    std::vector<std::size_t> nodeTags;
     std::vector<double> coord;
     std::vector<double> parametricCoord;
 
@@ -85,11 +85,9 @@ int main(int argc, char *argv[])
 
     XMLElement *materials = doc->FirstChildElement("materials");
     /// std::cout << "step 1.\n";
-    XMLElement *element_type_data = doc->FirstChildElement("topology")
-                                        ->FirstChildElement("element_type_data");
     std::vector<int> elementTypes;
-    std::vector<std::vector<int>> elementTags;
-    std::vector<std::vector<int>> nodeTags;
+    std::vector<std::vector<std::size_t>> elementTags;
+    std::vector<std::vector<std::size_t>> nodeTags;
     gmsh::vectorpair dimTags;
     gmsh::model::getEntities(dimTags, dimension);
     for (auto x : dimTags)
@@ -147,13 +145,13 @@ int main(int argc, char *argv[])
             newElem->SetAttribute("id", elemNum);
             /// std::string type = "C" + std::to_string(dimension) + "D" + std::to_string(numNodes) + "PE";
             std::string type;
-            type = elemNameRule(dimension, numNodes, "Lin");
+            type = "Quadrangle"; //elemNameRule(dimension, numNodes, "Lin");
             newElem->SetAttribute("type", type.c_str());
-            insertElemMetaData(type.c_str(), element_type_data);
+            // insertElemMetaData(type.c_str(), element_mega_data);
             newElem->SetAttribute("mat", mat_ID);
             for (int k = 0; k < numNodes; k++)
               newElem->SetAttribute(("v" + std::to_string(k + 1)).c_str(),
-                                    nodeTags[i][j * numNodes + k]);
+                                    (int)(nodeTags[i][j * numNodes + k]));
           }
         }
         break;
@@ -176,7 +174,7 @@ int main(int argc, char *argv[])
     for (auto x : dimTags)
     {
       std::string PhyName;
-      std::vector<int> nodeTags;
+      std::vector<std::size_t> nodeTags;
       std::vector<double> coords;
       gmsh::model::getPhysicalName(x.first, x.second, PhyName);
       /// parsing physical names
@@ -233,17 +231,17 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-void insertElemMetaData(const char *MetaDataID, XMLElement *element_type_data)
+void insertElemMetaData(const char *MetaDataID, XMLElement *element_mega_data)
 {
-  if (!element_type_data->FirstChildElement(MetaDataID))
+  if (!element_mega_data->FirstChildElement(MetaDataID))
   {
-    XMLElement *newElemMetaData = element_type_data->GetDocument()->NewElement(MetaDataID);
-    element_type_data->InsertEndChild(newElemMetaData);
+    XMLElement *newElemMetaData = element_mega_data->GetDocument()->NewElement(MetaDataID);
+    element_mega_data->InsertEndChild(newElemMetaData);
     newElemMetaData->SetAttribute("gauss_num", 4);
     /// newElemMetaData->SetAttribute("polyDegree", 2);
     /// newElemMetaData->SetAttribute("plane_stress", false);
-    int n = (element_type_data->IntAttribute("number"));
-    element_type_data->SetAttribute("number", ++n);
+    int n = (element_mega_data->IntAttribute("number"));
+    element_mega_data->SetAttribute("number", ++n);
   }
   return;
 }
@@ -292,18 +290,6 @@ int createMainFrame(XMLDocument *doc)
   XMLElement *calConfig = doc->NewElement("calculation_configuration");
   doc->InsertEndChild(calConfig);
   {
-    /// gravity_calculation node in calConfig
-    XMLElement *gravity_calculation = doc->NewElement("gravity_calculation");
-    calConfig->InsertEndChild(gravity_calculation);
-    gravity_calculation->SetAttribute("scheme", "k0");
-    /// water_density node in calConfig
-    XMLElement *water_density = doc->NewElement("water_density");
-    calConfig->InsertEndChild(water_density);
-    water_density->SetAttribute("value", 10);
-    /// atm node in calConfig
-    XMLElement *atm = doc->NewElement("atm");
-    calConfig->InsertEndChild(atm);
-    atm->SetAttribute("value", 100);
     /// time_step node in calConfig
     XMLElement *time_step = doc->NewElement("time_step");
     calConfig->InsertEndChild(time_step);
@@ -346,6 +332,11 @@ int createMainFrame(XMLDocument *doc)
       XMLElement *nonlin_material = doc->NewElement("nonlin_material");
       iteration->InsertEndChild(nonlin_material);
       nonlin_material->SetAttribute("scheme", "viscoplasticity");
+      /// tolerance node in iteration
+      XMLElement *tolerance = doc->NewElement("tolerance");
+      iteration->InsertEndChild(tolerance);
+      tolerance->SetAttribute("relative", 0.01);
+      tolerance->SetAttribute("absolute", 0);
     }
 
     /// xfem node in calConfig
@@ -373,7 +364,21 @@ int createMainFrame(XMLDocument *doc)
         q_function_shape_factor->SetAttribute("exponent", 1);
       }
     } /// end xfem
-  }   /// end calConfig
+
+    /// gravity_calculation node in calConfig
+    XMLElement *gravity_calculation = doc->NewElement("gravity_calculation");
+    calConfig->InsertEndChild(gravity_calculation);
+    gravity_calculation->SetAttribute("scheme", "k0");
+    /// water_density node in calConfig
+    XMLElement *water_density = doc->NewElement("water_density");
+    calConfig->InsertEndChild(water_density);
+    water_density->SetAttribute("value", 10);
+    /// atm node in calConfig
+    XMLElement *atm = doc->NewElement("atm");
+    calConfig->InsertEndChild(atm);
+    atm->SetAttribute("value", 100);
+
+  } /// end calConfig
 
   XMLComment *comment4 = doc->NewComment("4. model's topology information");
   doc->InsertEndChild(comment4);
@@ -390,10 +395,30 @@ int createMainFrame(XMLDocument *doc)
     mesh->InsertEndChild(elements);
     elements->SetAttribute("number", 0);
     elements->SetAttribute("order", "clockwise");
-    /// element_type_data node in doc
-    XMLElement *element_type_data = doc->NewElement("element_type_data");
-    mesh->InsertEndChild(element_type_data);
-    element_type_data->SetAttribute("number", 0);
+    elements->SetAttribute("poly_degree", 1);
+    /// element_mega_data node in doc
+    XMLElement *element_mega_data = doc->NewElement("element_mega_data");
+    mesh->InsertEndChild(element_mega_data);
+    {
+      XMLElement *Segment = doc->NewElement("Segment");
+      element_mega_data->InsertEndChild(Segment);
+      Segment->SetAttribute("gauss_num", 3);
+      XMLElement *Triangle = doc->NewElement("Triangle");
+      element_mega_data->InsertEndChild(Triangle);
+      Triangle->SetAttribute("gauss_num", 3);
+      XMLElement *Quadrangle = doc->NewElement("Quadrangle");
+      element_mega_data->InsertEndChild(Quadrangle);
+      Quadrangle->SetAttribute("gauss_num", 4);
+      XMLElement *Tetrahedral = doc->NewElement("Tetrahedral");
+      element_mega_data->InsertEndChild(Tetrahedral);
+      Tetrahedral->SetAttribute("gauss_num", 4);
+      XMLElement *TriPrism = doc->NewElement("TriPrism");
+      element_mega_data->InsertEndChild(TriPrism);
+      TriPrism->SetAttribute("gauss_num", 6);
+      XMLElement *Octahedral = doc->NewElement("Octahedral");
+      element_mega_data->InsertEndChild(Octahedral);
+      Octahedral->SetAttribute("gauss_num", 8);
+    }
   }
 
   XMLComment *comment5 = doc->NewComment("5. material information");
@@ -449,7 +474,7 @@ void initialPhase(XMLDocument *doc, XMLElement *phase, const int &id)
   newBC->SetAttribute("Neumann", 0);
 }
 
-void insertDirichlet(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags)
+void insertDirichlet(XMLElement *root, std::vector<std::string> &tokens, const std::vector<std::size_t> &nodeTags)
 {
   XMLDocument *doc = root->GetDocument();
   for (int bcNode : nodeTags)
@@ -466,7 +491,7 @@ void insertDirichlet(XMLElement *root, std::vector<std::string> &tokens, const s
   }
 }
 
-void insertNeumann(XMLElement *root, std::vector<std::string> &tokens, const std::vector<int> &nodeTags)
+void insertNeumann(XMLElement *root, std::vector<std::string> &tokens, const std::vector<std::size_t> &nodeTags)
 {
   XMLDocument *doc = root->GetDocument();
   for (int bcNode : nodeTags)
@@ -495,43 +520,56 @@ void insertMat(XMLElement *root, std::vector<std::string> &tokens, const int &id
   XMLElement *volume_weight = doc->NewElement("volume_weight");
   mat->InsertEndChild(volume_weight);
   volume_weight->SetAttribute("value", "19");
+  volume_weight->SetAttribute("unit", "kN/m^3");
   XMLElement *friction_angle = doc->NewElement("friction_angle");
   mat->InsertEndChild(friction_angle);
   friction_angle->SetAttribute("value", "30");
+  friction_angle->SetAttribute("unit", "degree");
   XMLElement *dilation_angle = doc->NewElement("dilation_angle");
   mat->InsertEndChild(dilation_angle);
   dilation_angle->SetAttribute("value", "30");
+  dilation_angle->SetAttribute("unit", "degree");
   XMLElement *cohesion = doc->NewElement("cohesion");
   mat->InsertEndChild(cohesion);
   cohesion->SetAttribute("value", "10");
-  XMLElement *permeability = doc->NewElement("permeability");
-  mat->InsertEndChild(permeability);
-  permeability->SetAttribute("perm_x1", "1e-5");
-  permeability->SetAttribute("perm_x2", "1e-5");
-  permeability->SetAttribute("perm_x3", "1e-5");
+  cohesion->SetAttribute("unit", "kPa");
+  XMLElement *perm_x1 = doc->NewElement("perm_x1");
+  mat->InsertEndChild(perm_x1);
+  perm_x1->SetAttribute("value", "1e-5");
+  perm_x1->SetAttribute("unit", "m/day");
+  XMLElement *perm_x2 = doc->NewElement("perm_x2");
+  mat->InsertEndChild(perm_x2);
+  perm_x2->SetAttribute("value", "1e-5");
+  perm_x2->SetAttribute("unit", "m/day");
+  XMLElement *perm_x3 = doc->NewElement("perm_x3");
+  mat->InsertEndChild(perm_x3);
+  perm_x3->SetAttribute("value", "1e-5");
+  perm_x3->SetAttribute("unit", "m/day");
   /// XMLElement *ft = doc->NewElement("ft");
   /// mat->InsertEndChild(ft);
   /// ft->SetAttribute("value", "15");
-  XMLElement *Zeta = doc->NewElement("Zeta");
-  mat->InsertEndChild(Zeta);
-  Zeta->SetAttribute("value", "0.1");
+  XMLElement *zeta = doc->NewElement("zeta");
+  mat->InsertEndChild(zeta);
+  zeta->SetAttribute("value", "0.1");
   XMLElement *K_IC = doc->NewElement("K_IC");
   mat->InsertEndChild(K_IC);
   K_IC->SetAttribute("value", "2.9");
-  XMLElement *eModulus = doc->NewElement("eModulus");
-  mat->InsertEndChild(eModulus);
-  eModulus->SetAttribute("value", "10000");
-  XMLElement *ePoisson = doc->NewElement("ePoisson");
-  mat->InsertEndChild(ePoisson);
-  ePoisson->SetAttribute("value", "0.3");
+  K_IC->SetAttribute("unit", "kPa*m^0.5");
+  XMLElement *elastic_modulus = doc->NewElement("elastic_modulus");
+  mat->InsertEndChild(elastic_modulus);
+  elastic_modulus->SetAttribute("value", "10000");
+  elastic_modulus->SetAttribute("unit", "kPa");
+  XMLElement *elastic_poisson = doc->NewElement("elastic_poisson");
+  mat->InsertEndChild(elastic_poisson);
+  elastic_poisson->SetAttribute("value", "0.3");
   if (type == "elastic")
   {
-    /// XMLElement *eModulus = doc->NewElement("eModulus");
-    /// mat->InsertEndChild(eModulus);
-    /// eModulus->SetAttribute("value", "101");
-    /// XMLElement *ePoisson = doc->NewElement("ePoisson");
-    /// mat->InsertEndChild(ePoisson);
-    /// ePoisson->SetAttribute("value", "102");
+    /// XMLElement *elastic_modulus = doc->NewElement("elastic_modulus");
+    /// mat->InsertEndChild(elastic_modulus);
+    /// elastic_modulus->SetAttribute("value", "101");
+    /// XMLElement *elastic_poisson = doc->NewElement("elastic_poisson");
+    /// mat->InsertEndChild(elastic_poisson);
+    /// elastic_poisson->SetAttribute("value", "102");
   }
   else if (type == "DuncanChang")
   {
