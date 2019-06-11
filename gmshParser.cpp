@@ -262,7 +262,7 @@ int createMainFrame(XMLDocument *doc)
     /// describe->InsertEndChild(describeText);
     describe->SetAttribute("name", "test1");
     describe->SetAttribute("method", "FEM");
-    describe->SetAttribute("problem", "Static");
+    describe->SetAttribute("type", "Static");
     describe->SetAttribute("couple", "Solid");
     describe->SetAttribute("equation", "Implicit");
     describe->SetAttribute("solver", "default");
