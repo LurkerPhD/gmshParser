@@ -12,7 +12,8 @@ void gmshParser::readFromGmshFile(const std::string &_filename)
   ///----------------------------------------------------------------------------
   gmsh::initialize();
   gmsh::open(filename);
-  std::cout << "gmsh file imported.\n";
+  std::cout << "------------------------------------\n"
+            << "gmsh file imported.\n";
   dimension = gmsh::model::getDimension();
   gmsh::model::mesh::renumberNodes();
   gmsh::model::mesh::renumberElements();
