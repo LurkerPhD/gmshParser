@@ -1,5 +1,6 @@
 #ignore build directory
 build/
+.vscode/
 
 #ignore .DS_Store in MAC OS system
 .DS_Store

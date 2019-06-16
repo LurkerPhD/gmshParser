@@ -36,5 +36,6 @@ endif(WIN32 OR CYGWIN)
 
 include_directories(${GMSH_INC})
 
-add_executable(${PROJECT_NAME} gmshParser.cpp tinyxml2.cpp)
+# add_executable(${PROJECT_NAME} gmshParser.cpp tinyxml2.cpp)
+add_executable(${PROJECT_NAME} gmshParser.cpp main.cpp tinyxml2.cpp)
 target_link_libraries(${PROJECT_NAME} ${GMSH_LIB} ${EXTRA_LIBS})
