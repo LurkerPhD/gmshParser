@@ -3,7 +3,7 @@
 
 void parseDirectory(std::string path)
 {
-    if (strcmp(&path.back(), "/"))
+    if (path.back() != 47)
         path.append("/");
 
     struct dirent *next_file = NULL;
