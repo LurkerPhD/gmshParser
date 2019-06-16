@@ -427,12 +427,12 @@ void gmshParser::addOutput()
   XMLElement *output = addChildElement("output", doc);
   XMLElement *path = addChildElement("path", output);
   path->SetAttribute("value", "");
-  XMLElement *format = addChildElement("format", output);
-  format->SetAttribute("value", "vtk");
+  XMLElement *visualize = addChildElement("visualize", output);
+  visualize->SetAttribute("format", "vtk");
   XMLElement *plot = addChildElement("plot", output);
-  plot->SetAttribute("value", "mesh+gauss");
-  XMLElement *displacment_amplifier = addChildElement("displacment_amplifier", output);
-  displacment_amplifier->SetAttribute("value", 1);
+  plot->SetAttribute("option", "mesh+gauss");
+  XMLElement *displacement_amplifier = addChildElement("displacement_amplifier", output);
+  displacement_amplifier->SetAttribute("value", 1);
   return;
 }
 ///----------------------------------------------------------------------------
