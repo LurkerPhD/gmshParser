@@ -36,8 +36,8 @@ void gmshParser::readFromGmshFile(const std::string &_filename)
   addBoundaries();
 
   ///----------------------------------------------------------------------------
-
-  doc->SaveFile((filename + ".xml").c_str());
+  const std::string raw_name = filename.substr(0, filename.find("."));
+  doc->SaveFile((raw_name + ".xml").c_str());
   std::cout << "xml file has been written.\n";
 }
 ///----------------------------------------------------------------------------
