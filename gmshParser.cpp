@@ -309,7 +309,7 @@ void gmshParser::addMaterial(std::vector<std::string> &tokens, const int &id)
   elastic_modulus->SetAttribute("unit", "kPa");
   XMLElement *elastic_poisson = addChildElement("elastic_poisson", _mat);
   elastic_poisson->SetAttribute("value", "0.3");
-  elastic_poisson->SetAttribute("value", "-");
+  elastic_poisson->SetAttribute("unit", "-");
   if (type.find("DuncanChang") != std::string::npos)
   {
     XMLElement *Rf = addChildElement("Rf", _mat);
