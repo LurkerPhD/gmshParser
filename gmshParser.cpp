@@ -76,7 +76,6 @@ void gmshParser::addElements()
 
   XMLElement *elements = doc->FirstChildElement("topology")
                              ->FirstChildElement("elements");
-  XMLElement *materials = doc->FirstChildElement("materials");
 
   for (auto x : dimTags)
   {
@@ -280,58 +279,81 @@ void gmshParser::addMaterial(std::vector<std::string> &tokens, const int &id)
 
   XMLElement *volume_weight = addChildElement("volume_weight", _mat);
   volume_weight->SetAttribute("value", "19");
+  volume_weight->SetAttribute("unit", "kN/m^3");
   XMLElement *friction_angle = addChildElement("friction_angle", _mat);
   friction_angle->SetAttribute("value", "30");
+  friction_angle->SetAttribute("unit", "degree");
   XMLElement *dilation_angle = addChildElement("dilation_angle", _mat);
   dilation_angle->SetAttribute("value", "30");
+  dilation_angle->SetAttribute("unit", "degree");
   XMLElement *cohesion = addChildElement("cohesion", _mat);
   cohesion->SetAttribute("value", "10");
+  cohesion->SetAttribute("unit", "kPa");
   XMLElement *perm_x1 = addChildElement("perm_x1", _mat);
   perm_x1->SetAttribute("value", "1e-5");
+  perm_x1->SetAttribute("unit", "m/day");
   XMLElement *perm_x2 = addChildElement("perm_x2", _mat);
   perm_x2->SetAttribute("value", "1e-5");
+  perm_x2->SetAttribute("unit", "m/day");
   XMLElement *perm_x3 = addChildElement("perm_x3", _mat);
   perm_x3->SetAttribute("value", "1e-5");
+  perm_x3->SetAttribute("unit", "m/day");
   XMLElement *zeta = addChildElement("zeta", _mat);
   zeta->SetAttribute("value", "0.1");
+  zeta->SetAttribute("unit", "-");
   XMLElement *K_IC = addChildElement("K_IC", _mat);
   K_IC->SetAttribute("value", "2.9");
+  K_IC->SetAttribute("unit", "kN/m^0.5");
   XMLElement *elastic_modulus = addChildElement("elastic_modulus", _mat);
   elastic_modulus->SetAttribute("value", "10000");
+  elastic_modulus->SetAttribute("unit", "kPa");
   XMLElement *elastic_poisson = addChildElement("elastic_poisson", _mat);
   elastic_poisson->SetAttribute("value", "0.3");
+  elastic_poisson->SetAttribute("value", "-");
   if (type.find("DuncanChang") != std::string::npos)
   {
     XMLElement *Rf = addChildElement("Rf", _mat);
     Rf->SetAttribute("value", "201");
+    Rf->SetAttribute("unit", "-");
     XMLElement *k = addChildElement("k", _mat);
     k->SetAttribute("value", "202");
+    k->SetAttribute("unit", "kPa");
     XMLElement *n = addChildElement("n", _mat);
     n->SetAttribute("value", "203");
+    n->SetAttribute("unit", "-");
     XMLElement *G = addChildElement("G", _mat);
     G->SetAttribute("value", "204");
+    G->SetAttribute("unit", "-");
     XMLElement *F = addChildElement("F", _mat);
     F->SetAttribute("value", "205");
+    F->SetAttribute("unit", "-");
     XMLElement *D = addChildElement("D", _mat);
     D->SetAttribute("value", "206");
+    D->SetAttribute("unit", "-");
   }
   else if (type.find("ModifiedCamClay") != std::string::npos)
   {
     XMLElement *swelling_slope = addChildElement("swelling_slope", _mat);
     swelling_slope->SetAttribute("value", "401");
+    swelling_slope->SetAttribute("unit", "-");
     XMLElement *normal_compress_slope = addChildElement("normal_compress_slope", _mat);
     normal_compress_slope->SetAttribute("value", "402");
+    normal_compress_slope->SetAttribute("unit", "-");
     XMLElement *initial_void = addChildElement("initial_void", _mat);
     initial_void->SetAttribute("value", "403");
+    initial_void->SetAttribute("unit", "-");
   }
   else if (type.find("DruckPrager") != std::string::npos)
   {
     XMLElement *qf = addChildElement("qf", _mat);
     qf->SetAttribute("value", "501");
+    qf->SetAttribute("unit", "-");
     XMLElement *kf = addChildElement("kf", _mat);
     kf->SetAttribute("value", "502");
+    kf->SetAttribute("unit", "-");
     XMLElement *q_dilantion = addChildElement("q_dilantion", _mat);
     q_dilantion->SetAttribute("value", "503");
+    q_dilantion->SetAttribute("unit", "degree");
   }
 
   return;
