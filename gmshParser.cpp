@@ -456,6 +456,13 @@ void gmshParser::addOutput()
   plot->SetAttribute("option", "mesh+gauss");
   XMLElement *displacement_amplifier = addChildElement("displacement_amplifier", output);
   displacement_amplifier->SetAttribute("value", 1);
+  XMLElement *node_output = addChildElement("node_output", output);
+  addChildComment("<node id=\"0\" attr=\"x1\"/>", node_output);
+  addChildComment("<node id=\"1\" attr=\"x2\"/>", node_output);
+  XMLElement *elem_output = addChildElement("elem_output", output);
+  addChildComment("<elem id=\"0\" attr=\"x1\"/>", elem_output);
+  addChildComment("<elem id=\"1\" attr=\"x2\"/>", elem_output);
+
   return;
 }
 ///----------------------------------------------------------------------------
