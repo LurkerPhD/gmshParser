@@ -424,7 +424,7 @@ void gmshParser::addDescribe()
 {
   /// root node Describe
   XMLElement *describe = addChildElement("describe", doc);
-  describe->SetAttribute("name", _file_name_with_path.c_str());
+  describe->SetAttribute("name", _file_name.c_str());
   describe->SetAttribute("method", "FEM");
   describe->SetAttribute("type", "Static");
   describe->SetAttribute("couple", "Solid");
@@ -450,7 +450,7 @@ void gmshParser::addBreakPoint()
 void gmshParser::addOutput()
 {
   XMLElement *output = addChildElement("output", doc);
-  output->SetAttribute("path", ("./result/" + _file_name_with_path).c_str());
+  output->SetAttribute("path", ("./result/" + _file_name).c_str());
   XMLElement *visualize = addChildElement("visualize", output);
   visualize->SetAttribute("format", "vtk");
   XMLElement *plot = addChildElement("plot", output);
