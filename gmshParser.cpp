@@ -8,10 +8,12 @@
 ///----------------------------------------------------------------------------
 void gmshParser::readFromGmshFile(const std::string &_filename)
 {
-  filename = _filename;
+  _file_name_with_path = _filename;
+  _file_name = _file_name_with_path.substr(_file_name_with_path.rfind('/') + 1, _file_name_with_path.size());
+  _file_name = _file_name.substr(0, _file_name.find('.'));
   ///----------------------------------------------------------------------------
   gmsh::initialize();
-  gmsh::open(filename);
+  gmsh::open(_file_name_with_path);
   std::cout << "------------------------------------\n"
             << "gmsh file imported.\n";
   dimension = gmsh::model::getDimension();
@@ -37,7 +39,7 @@ void gmshParser::readFromGmshFile(const std::string &_filename)
   addBoundaries();
 
   ///----------------------------------------------------------------------------
-  const std::string raw_name = filename.substr(0, filename.find("."));
+  const std::string raw_name = _file_name_with_path.substr(0, _file_name_with_path.find("."));
   doc->SaveFile((raw_name + ".xml").c_str());
   std::cout << "xml file has been written.\n";
 }
@@ -422,7 +424,7 @@ void gmshParser::addDescribe()
 {
   /// root node Describe
   XMLElement *describe = addChildElement("describe", doc);
-  describe->SetAttribute("name", "test1");
+  describe->SetAttribute("name", _file_name_with_path.c_str());
   describe->SetAttribute("method", "FEM");
   describe->SetAttribute("type", "Static");
   describe->SetAttribute("couple", "Solid");
@@ -448,20 +450,18 @@ void gmshParser::addBreakPoint()
 void gmshParser::addOutput()
 {
   XMLElement *output = addChildElement("output", doc);
-  XMLElement *path = addChildElement("path", output);
-  path->SetAttribute("value", "");
+  output->SetAttribute("path", ("./result/" + _file_name_with_path).c_str());
   XMLElement *visualize = addChildElement("visualize", output);
   visualize->SetAttribute("format", "vtk");
   XMLElement *plot = addChildElement("plot", output);
   plot->SetAttribute("option", "mesh+gauss");
   XMLElement *displacement_amplifier = addChildElement("displacement_amplifier", output);
   displacement_amplifier->SetAttribute("value", 1);
-  XMLElement *node_output = addChildElement("node_output", output);
-  addChildComment("<node id=\"0\" attr=\"x1\"/>", node_output);
-  addChildComment("<node id=\"1\" attr=\"x2\"/>", node_output);
-  XMLElement *elem_output = addChildElement("elem_output", output);
-  addChildComment("<elem id=\"0\" attr=\"x1\"/>", elem_output);
-  addChildComment("<elem id=\"1\" attr=\"x2\"/>", elem_output);
+  XMLElement *sequence_output = addChildElement("sequence_output", output);
+  addChildComment("<node id=\"0\" attribute=\"x1\"/>", sequence_output);
+  addChildComment("<node id=\"1\" attribute=\"x2\"/>", sequence_output);
+  addChildComment("<elem id=\"0\" attribute=\"x1\"/>", sequence_output);
+  addChildComment("<elem id=\"1\" attribute=\"sigma_x\"/>", sequence_output);
 
   return;
 }

@@ -11,7 +11,9 @@ private:
     ///
     XMLDocument *doc;
 
-    std::string filename;
+    std::string _file_name_with_path;
+
+    std::string _file_name;
 
     ///
     int dimension;
