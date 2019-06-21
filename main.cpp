@@ -1,8 +1,9 @@
 #include "gmshParser.h"
 #include <dirent.h>
 
-void parseDirectory(std::string path)
+void parseDirectory(const std::string &_path)
 {
+    std::string path = _path;
     if (path.back() != 47)
         path.append("/");
 
