@@ -220,7 +220,7 @@ void gmshParser::initialPhase(XMLElement *root, const int &id)
 {
 
   root->SetAttribute("id", id);
-  root->SetAttribute("start", 0);
+  root->SetAttribute("start_time", 0);
   root->SetAttribute("total_time", 1000);
   root->SetAttribute("delta_time", 10);
   root->SetAttribute("element_num", 9);
