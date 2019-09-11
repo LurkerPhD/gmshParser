@@ -427,11 +427,10 @@ void gmshParser::addDescribe()
   XMLElement *describe = addChildElement("describe", doc);
   describe->SetAttribute("name", _file_name.c_str());
   describe->SetAttribute("method", "FEM");
-  describe->SetAttribute("type", "Static");
-  describe->SetAttribute("couple", "Solid");
-  describe->SetAttribute("equation", "Implicit");
-  describe->SetAttribute("solver", "default");
-  describe->SetAttribute("dim", dimension);
+  describe->SetAttribute("couple", "None");
+  describe->SetAttribute("equation", "Static");
+  describe->SetAttribute("solver", "Implicit");
+  describe->SetAttribute("load", "Incremental");
   if (dimension == 2)
     describe->SetAttribute("plane_stress", false);
 
@@ -452,9 +451,8 @@ void gmshParser::addOutput()
 {
   XMLElement *output = addChildElement("output", doc);
   output->SetAttribute("path", ("./result/" + _file_name).c_str());
-  XMLElement *visualize = addChildElement("visualize", output);
-  visualize->SetAttribute("format", "vtk");
   XMLElement *plot = addChildElement("plot", output);
+  plot->SetAttribute("format", "vtk");
   plot->SetAttribute("option", "mesh+gauss");
   XMLElement *displacement_amplifier = addChildElement("displacement_amplifier", output);
   displacement_amplifier->SetAttribute("value", 1);
@@ -474,10 +472,6 @@ void gmshParser::addCalculationConfiguration()
 
   XMLElement *time_step = addChildElement("time_step", calConfig);
   {
-    XMLElement *load_apply = addChildElement("load_apply", time_step);
-    load_apply->SetAttribute("scheme", "incremental");
-    XMLElement *stiff_matrix = addChildElement("stiff_matrix", time_step);
-    stiff_matrix->SetAttribute("scheme", "tangent");
     XMLElement *stiff_update = addChildElement("stiff_update", time_step);
     stiff_update->SetAttribute("interval", 0);
     XMLElement *time_differential = addChildElement("time_differential", time_step);
