@@ -427,7 +427,8 @@ void gmshParser::addDescribe()
   XMLElement *describe = addChildElement("describe", doc);
   describe->SetAttribute("name", _file_name.c_str());
   describe->SetAttribute("method", "FEM");
-  describe->SetAttribute("couple", "None");
+  describe->SetAttribute("couple", "Displace+Biot");
+  describe->SetAttribute("enrich", "Standard+Heaviside+Branch");
   describe->SetAttribute("equation", "Static");
   describe->SetAttribute("solver", "Implicit");
   describe->SetAttribute("load", "Incremental");
@@ -491,7 +492,6 @@ void gmshParser::addCalculationConfiguration()
   }
   XMLElement *xfem = addChildElement("xfem", calConfig);
   {
-    xfem->SetAttribute("active", true);
     XMLElement *crack_segment = addChildElement("crack_segment", xfem);
     {
       crack_segment->SetAttribute("default_delta_length", 0.03);
