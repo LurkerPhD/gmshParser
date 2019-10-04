@@ -373,9 +373,8 @@ void gmshParser::buildMainFrame()
   addChildComment("1. model type information", doc);
   addDescribe();
 
-  addChildComment("2. input/output information", doc);
+  addChildComment("2. input information", doc);
   addBreakPoint();
-  addOutput();
 
   addChildComment("3. calculation configuration information", doc);
   addCalculationConfiguration();
@@ -389,8 +388,11 @@ void gmshParser::buildMainFrame()
   addChildComment("6. initial condition information", doc);
   addInitCondition();
 
-  addChildComment(" 7. phase step information", doc);
+  addChildComment("7. phase step information", doc);
   addPhases();
+
+  addChildComment("8. output information", doc);
+  addOutput();
 }
 ///----------------------------------------------------------------------------
 
@@ -452,8 +454,8 @@ void gmshParser::addOutput()
 {
   XMLElement *output = addChildElement("output", doc);
   output->SetAttribute("path", ("./result/" + _file_name).c_str());
+  output->SetAttribute("format", "vtk");
   XMLElement *plot = addChildElement("plot", output);
-  plot->SetAttribute("format", "vtk");
   plot->SetAttribute("option", "mesh+gauss");
   XMLElement *displacement_amplifier = addChildElement("displacement_amplifier", output);
   displacement_amplifier->SetAttribute("value", 1);
