@@ -169,7 +169,7 @@ public:
   }
   ///----------------------------------------------------------------------------
 
-  void addCrack(XMLNode *root)
+  void addCrack(XMLNode *cracks)
   {
     std::vector<int> elementTypes;
     std::vector<std::vector<std::size_t>> elementTags;
@@ -181,7 +181,6 @@ public:
     {
       std::vector<int> PhyTags;
       std::string PhyName;
-      int mat_ID;
       gmsh::model::getPhysicalGroupsForEntity(x.first, x.second, PhyTags);
 
       elementTypes.clear();
@@ -192,6 +191,10 @@ public:
       if (PhyName.find("crack") == std::string::npos)
         continue;
 
+      XMLElement *crack = addChildElement("crack", cracks);
+      int crack_num = cracks->ToElement()->IntAttribute("number");
+      crack->SetAttribute("id", crack_num);
+      cracks->ToElement()->SetAttribute("number", crack_num + 1);
       int elemNum = 0;
       for (int i = 0; i < elementTypes.size(); i++)
       {
@@ -203,7 +206,7 @@ public:
         gmsh::model::mesh::getElementProperties(elementTypes[i], elemName, elem_dim, order, numNodes, parametricCoord);
         for (int j = 0; j < elementTags[i].size(); j++)
         {
-          XMLElement *elem = addChildElement("elem", root);
+          XMLElement *elem = addChildElement("elem", crack);
           elem->SetAttribute("id", elemNum);
           std::string type;
           if (elem_dim == 1)
@@ -238,12 +241,9 @@ public:
             }
 
           elem->SetAttribute("type", type.c_str());
-          // insertElemMetaData(type.c_str(), element_mega_data);
-          elem->SetAttribute("mat", mat_ID);
           for (int k = 0; k < numNodes; k++)
             elem->SetAttribute(("v" + std::to_string(k)).c_str(), (int)(nodeInElementTags[i][j * numNodes + k] - 1));
           elemNum++;
-          root->ToElement()->SetAttribute("number", elemNum);
         }
       }
     }
@@ -587,6 +587,7 @@ public:
       tolerance->SetAttribute("absolute", 0);
     }
     XMLElement *xfem = addChildElement("xfem", calConfig);
+    xfem->SetAttribute("active", "true");
     {
       XMLElement *crack_segment = addChildElement("crack_segment", xfem);
       {
