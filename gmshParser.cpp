@@ -198,21 +198,15 @@ public:
                 }
                 XMLElement *_boundaryCondition = phase->FirstChildElement("boundary_condition");
 
-                std::vector<int> entityTags;
-                gmsh::model::getEntitiesForPhysicalGroup(PhysicalTag.first, PhysicalTag.second, entityTags);
-                std::vector<double> parametricCoord;
-                for (auto entityTag : entityTags)
+                gmsh::model::mesh::getNodesForPhysicalGroup(PhysicalTag.first, PhysicalTag.second, nodeTags, coords);
+                for (int bcNode : nodeTags)
                 {
-                    // gmsh::model::mesh::getNodes(nodeTags,coords,parametricCoord,getDimension(),entityTags)
-                    for (int bcNode : nodeTags)
-                    {
-                        XMLElement *newbc = addChildElement(_boundaryType.c_str(), _boundaryCondition);
-                        newbc->SetAttribute("node", bcNode - 1);
-                        newbc->SetAttribute("dof", _dofPosStr.c_str());
-                        newbc->SetAttribute("type", "linear");
-                        newbc->SetAttribute("start", (PhyName + "_start").c_str());
-                        newbc->SetAttribute("end", (PhyName + "_end").c_str());
-                    }
+                    XMLElement *newbc = addChildElement(_boundaryType.c_str(), _boundaryCondition);
+                    newbc->SetAttribute("node", bcNode - 1);
+                    newbc->SetAttribute("dof", _dofPosStr.c_str());
+                    newbc->SetAttribute("type", "linear");
+                    newbc->SetAttribute("start", (PhyName + "_start").c_str());
+                    newbc->SetAttribute("end", (PhyName + "_end").c_str());
                 }
             }
         }
@@ -556,29 +550,19 @@ void gmshParser::readFromGmshFile(const std::string &_name_with_path)
     std::cout << "1. xml file created.\n";
     ///----------------------------------------------------------------------------
 
-    // /// get all nodes
-    // m_pImpl->addNodes(m_pImpl->getDocument()->FirstChildElement("topology")->FirstChildElement("nodes"));
-    // std::cout << "2. node information parsed.\n";
-    // ///----------------------------------------------------------------------------
-
-    // //get all elements
-    // m_pImpl->addElements(m_pImpl->getDocument()->FirstChildElement("topology")->FirstChildElement("elements"), m_pImpl->getDimension());
-    // std::cout << "3. element information parsed.\n";
-    // ///----------------------------------------------------------------------------
-
     /// get crack mesh
     m_pImpl->addMesh(m_pImpl->getDocument()->FirstChildElement("topology"), -1);
-    std::cout << "4. crack information parsed.\n";
+    std::cout << "2. mesh information parsed.\n";
     ///----------------------------------------------------------------------------
 
     ///get all boundary condition information
     m_pImpl->addBoundaries(m_pImpl->getDocument()->FirstChildElement("phases"));
-    std::cout << "5. boundary information parsed.\n";
+    std::cout << "3. boundary information parsed.\n";
     ///----------------------------------------------------------------------------
 
     auto [_bool1, raw_name] = parseName(_name_with_path, "(.*)\\..{3}$");
     m_pImpl->getDocument()->SaveFile((raw_name + ".xml").c_str());
-    std::cout << "6. xml file has been written.\n";
+    std::cout << "4. xml file has been written.\n";
 }
 ///----------------------------------------------------------------------------
 

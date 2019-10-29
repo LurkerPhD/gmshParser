@@ -3,12 +3,12 @@ $MeshFormat
 $EndMeshFormat
 $PhysicalNames
 6
-1 1 "Dirichlet_P1_x2_1"
-1 2 "lower_boundary"
-1 3 "left_boundary"
-1 4 "right_boundary"
-1 5 "crack1"
-2 6 "mat0_elastic"
+2 1 "mat0_elastic"
+1 2 "Dirichlet_P1_x2_1"
+1 3 "lower_boundary"
+1 4 "left_boundary"
+1 5 "right_boundary"
+1 6 "crack1"
 $EndPhysicalNames
 $Entities
 6 5 1 0
@@ -17,13 +17,13 @@ $Entities
 3 2 2 0 0 
 4 -2 2 0 0 
 5 -2.1 0.3 0 0 
-6 -1 0.5 0 0 
-1 -2 -2 0 2 -2 0 1 2 2 1 -2 
-2 2 -2 0 2 2 0 1 4 2 2 -3 
-3 -2 2 0 2 2 0 1 1 2 3 -4 
-4 -2 -2 0 -2 2 0 1 3 2 4 -1 
-5 -2.1 0.3 0 -1 0.5 0 1 5 2 5 -6 
-1 -1.587155922186552 -2 0 2 2 0 1 6 4 1 2 3 4 
+6 -1 0.5 0 0  
+1 -2   -2  0  2 -2   0 1 3 2 1 -2 
+2  2   -2  0  2  2   0 1 5 2 2 -3 
+3 -2    2  0  2  2   0 1 2 2 3 -4 
+4 -2   -2  0 -2  2   0 1 4 2 4 -1 
+5 -2.1 0.3 0 -1  0.5 0 1 6 2 5 -6 
+1 -1.587155922186552 -2 0 2 2 0 1 1 4 1 2 3 4 
 $EndEntities
 $Nodes
 12 80 1 80
