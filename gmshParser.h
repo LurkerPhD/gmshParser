@@ -6,6 +6,8 @@
 
 using namespace tinyxml2;
 
+std::pair<bool, std::string> parseName(const std::string &_src, const std::string &_patternStr, const std::size_t &_index = 1);
+
 class gmshParser
 {
 private:

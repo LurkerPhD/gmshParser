@@ -1,5 +1,7 @@
 #include "gmshParser.h"
 #include <dirent.h>
+#include <iostream>
+#include <regex>
 
 void parseDirectory(const std::string &_path)
 {
@@ -28,12 +30,15 @@ void parseDirectory(const std::string &_path)
             }
             else
             {
-                const std::string postfix = abs_path.substr(abs_path.rfind(".") + 1, abs_path.size());
-                if ((file = fopen(abs_path.c_str(), "r")) && postfix.find("msh") != std::string::npos)
+                auto [_ifXML, postfix] = parseName(abs_path, ".*[/|\\\\].+?\\.(.{3})$");
+                if (_ifXML)
                 {
-                    fclose(file);
-                    gmshParser parser;
-                    parser.readFromGmshFile(abs_path);
+                    if ((file = fopen(abs_path.c_str(), "r")) && postfix.compare("msh") == 0)
+                    {
+                        fclose(file);
+                        gmshParser parser;
+                        parser.readFromGmshFile(abs_path);
+                    }
                 }
             }
         }
@@ -47,7 +52,8 @@ int main(int argc, char const *argv[])
     if (argc > 1)
         filename = argv[1];
     else
-        filename = "/Users/lurker/Desktop/geoxfem/demo";
+        filename = "/Users/lurker.phd/Desktop/geoxfem/gmshParser";
+    // filename = "/Users/lurker/Desktop/geoxfem/demo";
 
     parseDirectory(filename.c_str());
 
