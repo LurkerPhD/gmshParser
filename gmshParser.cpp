@@ -85,7 +85,7 @@ public:
                         crack = _crack;
                         break;
                     }
-                if (crack == nullptr)
+                if (!crack)
                 {
                     crack = addChildElement("crack", cracks);
                     crack->SetAttribute("id", std::stoi(_crackIDStr) - 1);
@@ -121,7 +121,7 @@ public:
                         node = _node;
                         break;
                     }
-                if (node == nullptr)
+                if (!node)
                 {
                     node = addChildElement("node", _nodeEntry);
                     node->SetAttribute("id", nodeTag - 1);
@@ -184,7 +184,7 @@ public:
                 for (auto _phase = root->FirstChildElement("phase"); _phase; _phase = phase->NextSiblingElement("phase"))
                     if (_phase->IntAttribute("id") == phase_ID)
                         phase = _phase;
-                if (phase == nullptr)
+                if (!phase)
                 {
                     phase = addChildElement("phase", root);
                     int phase_num = root->ToElement()->IntAttribute("number");
@@ -373,7 +373,7 @@ public:
         describe->SetAttribute("name", m_fileName.c_str());
         describe->SetAttribute("method", "FEM");
         describe->SetAttribute("unknown", "Displace+Biot");
-        describe->SetAttribute("displace_pattern", "Standard+Heaviside+Branch");
+        describe->SetAttribute("displace_pattern", "Standard+Signeded+Branch");
         describe->SetAttribute("equation", "Static");
         describe->SetAttribute("solver", "Implicit");
         describe->SetAttribute("load", "Incremental");
