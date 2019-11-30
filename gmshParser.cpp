@@ -421,6 +421,8 @@ class gmshParser::impl {
     XMLElement *xfem = addChildElement("xfem", calConfig);
     xfem->SetAttribute("active", "true");
     {
+      XMLElement *branchEnrich = addChildElement("branchEnrich", xfem);
+      { branchEnrich->SetAttribute("radius", 0); }
       XMLElement *crack_segment = addChildElement("crack_segment", xfem);
       {
         crack_segment->SetAttribute("default_delta_length", 0.03);
@@ -432,7 +434,8 @@ class gmshParser::impl {
         XMLElement *integral_domain = addChildElement("integral_domain", SIF);
         integral_domain->SetAttribute("Shape", "circle");
         integral_domain->SetAttribute("radius", 9);
-        integral_domain->SetAttribute("qfunction_exponent", 1);
+        XMLElement *qfunction = addChildElement("qfunction", SIF);
+        qfunction->SetAttribute("exponent", 1);
       }
     }
     XMLElement *gravity_calculation =
