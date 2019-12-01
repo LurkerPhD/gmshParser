@@ -65,7 +65,7 @@ class gmshParser::impl {
         mat_ID = std::stoi(_matIDStr);
         auto [_bool, _matName] =
             parseName(PhyName, ".*mat\\d+_([a-z|0-9|A-Z]+).*");
-        addMaterial(root->GetDocument()->FirstChildElement("materials"),
+        addMaterial(root->Parent()->ToElement()->FirstChildElement("materials"),
                     _matName, mat_ID);
         addMeshForEntity(PhysicalTag, root, mat_ID);
       } else if (_isCrack) {
@@ -296,31 +296,35 @@ class gmshParser::impl {
   void buildMainFrame() {
     m_doc = new XMLDocument();
     m_doc->Parse(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>");
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><!DOCTYPE "
+        "xml>");
 
-    addChildComment("1. model type information", m_doc);
-    addDescribe(m_doc);
+    XMLElement *root = m_doc->NewElement("geoxfem_input");
+    m_doc->InsertEndChild(root);
 
-    addChildComment("2. input information", m_doc);
-    addBreakPoint(m_doc);
+    addChildComment("1. model type information", root);
+    addDescribe(root);
 
-    addChildComment("3. calculation configuration information", m_doc);
-    addCalculationConfiguration(m_doc);
+    addChildComment("2. input information", root);
+    addBreakPoint(root);
 
-    addChildComment("4. model's topology information", m_doc);
-    addTopology(m_doc);
+    addChildComment("3. calculation configuration information", root);
+    addCalculationConfiguration(root);
 
-    addChildComment("5. s information", m_doc);
-    addMaterials(m_doc);
+    addChildComment("4. model's topology information", root);
+    addTopology(root);
 
-    addChildComment("6. initial condition information", m_doc);
-    addInitCondition(m_doc);
+    addChildComment("5. s information", root);
+    addMaterials(root);
 
-    addChildComment("7. phase step information", m_doc);
-    addPhases(m_doc);
+    addChildComment("6. initial condition information", root);
+    addInitCondition(root);
 
-    addChildComment("8. output information", m_doc);
-    addOutput(m_doc);
+    addChildComment("7. phase step information", root);
+    addPhases(root);
+
+    addChildComment("8. output information", root);
+    addOutput(root);
   }
   ///----------------------------------------------------------------------------
 
@@ -430,7 +434,7 @@ class gmshParser::impl {
       }
       XMLElement *SIF = addChildElement("SIF", xfem);
       {
-        SIF->SetAttribute("calculation_method", "Jint");
+        SIF->SetAttribute("calculation_method", "InterationIntegral");
         XMLElement *integral_domain = addChildElement("integral_domain", SIF);
         integral_domain->SetAttribute("Shape", "circle");
         integral_domain->SetAttribute("radius", 9);
@@ -536,14 +540,18 @@ void gmshParser::readFromGmshFile(const std::string &_name_with_path) {
   std::cout << "1. xml file created.\n";
   ///----------------------------------------------------------------------------
 
+  XMLElement *data =
+  m_pImpl->getDocument()->FirstChildElement("geoxfem_input");
+  ///----------------------------------------------------------------------------
+
   /// get crack mesh
-  m_pImpl->addMesh(m_pImpl->getDocument()->FirstChildElement("topology"), -1);
+  m_pImpl->addMesh(data->FirstChildElement("topology"), -1);
   std::cout << "2. mesh information parsed.\n";
   ///----------------------------------------------------------------------------
 
-  /// get all boundary condition information
-  m_pImpl->addBoundaries(m_pImpl->getDocument()->FirstChildElement("phases"));
-  std::cout << "3. boundary information parsed.\n";
+  // /// get all boundary condition information
+  // m_pImpl->addBoundaries(data->FirstChildElement("phases"));
+  // std::cout << "3. boundary information parsed.\n";
   ///----------------------------------------------------------------------------
 
   auto [_bool1, raw_name] = parseName(_name_with_path, "(.*)\\..{3}$");
