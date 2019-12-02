@@ -91,7 +91,12 @@ class gmshParser::impl {
   void addMeshForEntity(const std::pair<int, int> &PhysicalTag, XMLNode *root,
                         const int &mat_ID = -1) {
     XMLElement *_nodeEntry = root->FirstChildElement("nodes");
+    _nodeEntry->SetAttribute("number", 0);
     XMLElement *_elemEntry = root->FirstChildElement("elements");
+    _elemEntry->SetAttribute("number", 0);
+    _elemEntry->SetAttribute("point_order", "clockwise");
+    _elemEntry->SetAttribute("poly_degree", 0);
+    int elemOrder = 0;
     std::vector<int> EntityTags;
     gmsh::model::getEntitiesForPhysicalGroup(PhysicalTag.first,
                                              PhysicalTag.second, EntityTags);
@@ -101,7 +106,7 @@ class gmshParser::impl {
       std::vector<double> parametricCoord;
       gmsh::model::mesh::getNodes(nodeTags, coord, parametricCoord,
                                   PhysicalTag.first, EntityTag, true);
-      for (std::size_t i = 0, nn = nodeTags.size(); i < nn; ++i) {
+      for (std::size_t i = 0, nn = nodeTags.size(); i != nn; ++i) {
         int nodeTag = nodeTags[i];
         XMLElement *node = nullptr;
         for (XMLElement *_node = _nodeEntry->FirstChildElement("node"); _node;
@@ -111,11 +116,13 @@ class gmshParser::impl {
             break;
           }
         if (!node) {
+          int _nodeNum = _nodeEntry->Int64Attribute("number");
           node = addChildElement("node", _nodeEntry);
           node->SetAttribute("id", nodeTag - 1);
           node->SetAttribute("x1", coord[i * 3 + 0]);
           node->SetAttribute("x2", coord[i * 3 + 1]);
           node->SetAttribute("x3", coord[i * 3 + 2]);
+          _nodeEntry->SetAttribute("number", ++_nodeNum);
         }
       }  ///----------------------------------------------------------------------------
       std::vector<int> elementTypes;
@@ -126,12 +133,13 @@ class gmshParser::impl {
                                      EntityTag);
       for (std::size_t i = 0, nTypes = elementTypes.size(); i < nTypes; ++i) {
         std::string elemName;
-        int elemDim, elemOrder, numNodes;
+        int elemDim, numNodes;
         std::vector<double> parametricCoord;
         std::string elementType = ElementTypeNameMap[elementTypes[i]];
         gmsh::model::mesh::getElementProperties(elementTypes[i], elemName,
                                                 elemDim, elemOrder, numNodes,
                                                 parametricCoord);
+
         for (std::size_t j = 0, nElement = elementTags[i].size(); j < nElement;
              ++j) {
           int elemNum = _elemEntry->ToElement()->IntAttribute("number");
@@ -147,6 +155,7 @@ class gmshParser::impl {
         }
       }
     }
+    _elemEntry->SetAttribute("poly_degree", elemOrder);
   }
 
   /// for each physical group, parser its name and collect its nodes
@@ -426,7 +435,10 @@ class gmshParser::impl {
     xfem->SetAttribute("active", "true");
     {
       XMLElement *branchEnrich = addChildElement("branchEnrich", xfem);
-      { branchEnrich->SetAttribute("radius", 0); }
+      {
+        branchEnrich->SetAttribute("shape", "circle");
+        branchEnrich->SetAttribute("radius", 0);
+      }
       XMLElement *crack_segment = addChildElement("crack_segment", xfem);
       {
         crack_segment->SetAttribute("default_delta_length", 0.03);
@@ -436,7 +448,7 @@ class gmshParser::impl {
       {
         SIF->SetAttribute("calculation_method", "InterationIntegral");
         XMLElement *integral_domain = addChildElement("integral_domain", SIF);
-        integral_domain->SetAttribute("Shape", "circle");
+        integral_domain->SetAttribute("shape", "circle");
         integral_domain->SetAttribute("radius", 9);
         XMLElement *qfunction = addChildElement("qfunction", SIF);
         qfunction->SetAttribute("exponent", 1);
@@ -462,11 +474,7 @@ class gmshParser::impl {
   void addTopology(XMLNode *root) {
     XMLElement *topology = addChildElement("topology", root);
     XMLElement *nodes = addChildElement("nodes", topology);
-    nodes->SetAttribute("number", 0);
     XMLElement *elements = addChildElement("elements", topology);
-    elements->SetAttribute("number", 0);
-    elements->SetAttribute("order", "clockwise");
-    elements->SetAttribute("poly_degree", 1);
     XMLElement *cracks = addChildElement("cracks", topology);
     cracks->SetAttribute("number", 0);
     XMLElement *element_mega_data =
@@ -540,8 +548,7 @@ void gmshParser::readFromGmshFile(const std::string &_name_with_path) {
   std::cout << "1. xml file created.\n";
   ///----------------------------------------------------------------------------
 
-  XMLElement *data =
-  m_pImpl->getDocument()->FirstChildElement("geoxfem_input");
+  XMLElement *data = m_pImpl->getDocument()->FirstChildElement("geoxfem_input");
   ///----------------------------------------------------------------------------
 
   /// get crack mesh
