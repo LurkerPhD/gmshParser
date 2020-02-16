@@ -1,16 +1,35 @@
+/*=============================================================================
+*
+*   Copyright (C) 2020 All rights reserved.
+*
+*   Filename:		main.cpp
+*
+*   Author: Wang Zhecheng - wangzhecheng@yeah.net
+*
+*   Date: 2020-02-14 04:49
+*
+*   Last Editors: Wang Zhecheng - wangzhecheng@yeah.net
+*
+*   Last modified:	2020-02-16 19:43
+*
+*   Description:
+*
+=============================================================================*/
+#include "gmshParser.hpp"
 #include <dirent.h>
 #include <iostream>
 #include <regex>
-#include "gmshParser.h"
 
 void parseDirectory(const std::string &_path) {
   std::string path = _path;
-  if (path.back() != 47) path.append("/");
+  if (path.back() != 47)
+    path.append("/");
 
   struct dirent *next_file = NULL;
   DIR *dir = opendir(path.c_str());
 
-  if (!dir) return;
+  if (!dir)
+    return;
 
   while ((next_file = readdir(dir))) {
     DIR *sub_dir = nullptr;
@@ -27,8 +46,8 @@ void parseDirectory(const std::string &_path) {
           if ((file = fopen(abs_path.c_str(), "r")) &&
               postfix.compare("msh") == 0) {
             fclose(file);
-            gmshParser parser;
-            parser.readFromGmshFile(abs_path);
+            gmshParser<gmsh2json> parser;
+            parser.parseGmshFile(abs_path);
           }
         }
       }

@@ -1,8 +1,61 @@
-#ignore build directory
-build/
-.vscode/
+# Prerequisites
+*.d
 
-#ignore .DS_Store in MAC OS system
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+
 .DS_Store
 
-*.xml
+*.pvd
+*.vtu
+*.csv
+/.vscode
+/bin
+/build
+/gmshParser
+/trial
+/result
+/temp
+*ccls*
+*cache*
+*icloud*
+*tags*
+
+*compare*
+
+# create by https://github.com/iamcco/coc-gitignore (Tue Dec 10 2019 17:35:51 GMT+0800 (China Standard Time))
+# 1C.gitignore:
+# 1C external data processors on unmanaged formes
+
+**/Form/**/form
+src/**/und/*
+src/**/maps.txt
+src/**/renames.txt

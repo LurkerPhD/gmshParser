@@ -1,9 +1,15 @@
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.1.0)
+
 set(CMAKE_CXX_STANDARD 17)
-project(gmshParser)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # destination
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}")
+
+# import boost library
+set(Boost_NO_BOOST_CMAKE ON)
+find_package(Boost REQUIRED)
 
 find_library(GMSH_LIB gmsh)
 message("there is the gmsh lib :" ${GMSH_LIB})
@@ -32,7 +38,7 @@ if(WIN32 OR CYGWIN)
   list(APPEND EXTRA_LIBS winmm wsock32 ws2_32 psapi)
 endif(WIN32 OR CYGWIN)
 
-include_directories(${GMSH_INC})
+include_directories(${Boost_INCLUDE_DIRS})
 
-add_subdirectory(src)
-
+add_executable(gmsh2json gmsh2json.cpp)
+target_link_libraries(gmsh2json ${Boost_LIBRARIES})
