@@ -2,7 +2,7 @@
 *
 *   Copyright (C) 2020 All rights reserved.
 *
-*   Filename:		gmshParser.h
+*   Filename:		gmshParser.hpp
 *
 *   Author:		pt2.cpp
 *
@@ -10,7 +10,7 @@
 *
 *   Last Editors:		pt2.cpp
 *
-*   Last modified:	2020-02-16 19:41
+*   Last modified:	2020-02-16 22:40
 *
 *   Description:		pt2.cpp
 *
@@ -59,13 +59,6 @@ private:
   std::set<int> m_mat_list;
   std::set<int> m_node_list;
 
-  template <typename P>
-  void arrayAppend(pt &_root, const std::string &_name, const P &_value) {
-    pt child;
-    child.put(_name, _value);
-    _root.push_back(std::make_pair("", child));
-  }
-
   void buildMainFrame() {
     /* add description node */
     m_ptree.put("description.name", m_fileName.c_str());
@@ -106,16 +99,27 @@ private:
     m_ptree.put("calculation.atm.unit", "kPa");
 
     /* addTopology(root); */
-    m_ptree.put("topology.element_degree", 1);
-    m_ptree.put("topology.element_order", "clockwise");
-    pt gauss_num;
-    arrayAppend(gauss_num, "segment", 3);
-    arrayAppend(gauss_num, "triangle", 3);
-    arrayAppend(gauss_num, "quadrangle", 4);
-    arrayAppend(gauss_num, "tetrahedral", 4);
-    arrayAppend(gauss_num, "tri_prism", 6);
-    arrayAppend(gauss_num, "octahedral", 8);
-    m_ptree.add_child("topology.gauss_num", gauss_num);
+    m_ptree.put("topology.shape_function_degree", 1);
+    m_ptree.put("topology.elem_nodes_order", "clockwise");
+    pt gauss_num, tmp;
+    tmp.put("segment", 3);
+    arrayAppend(gauss_num, tmp, "nGP");
+    tmp.clear();
+    tmp.put("triangle", 3);
+    arrayAppend(gauss_num, tmp, "nGP");
+    tmp.clear();
+    tmp.put("quadrangle", 4);
+    arrayAppend(gauss_num, tmp, "nGP");
+    tmp.clear();
+    tmp.put("tetrahedral", 4);
+    arrayAppend(gauss_num, tmp, "nGP");
+    tmp.clear();
+    tmp.put("tri_prism", 6);
+    arrayAppend(gauss_num, tmp, "nGP");
+    tmp.clear();
+    tmp.put("octahedral", 8);
+    arrayAppend(gauss_num, tmp, "nGP");
+    m_ptree.add_child("topology.elem_gauss_num", gauss_num);
     m_ptree.put("topology.cracks", "");
 
     /* addMaterials(root); */
@@ -148,22 +152,22 @@ private:
         addMaterial(m_ptree.get_child("materials"), _matName, mat_ID);
         addMeshForEntity(PhysicalTag, m_ptree.get_child("topology"), mat_ID);
       } else if (_isCrack) {
-        /* XMLElement *crack = nullptr; */
-        /* XMLElement *cracks = root->FirstChildElement("cracks"); */
-        /* for (XMLElement *_crack = cracks->FirstChildElement("crack"); _crack;
-         */
-        /*      _crack = _crack->NextSiblingElement("crack")) */
-        /*   if (_crack->IntAttribute("id") == std::stoi(_crackIDStr)) { */
-        /*     crack = _crack; */
-        /*     break; */
-        /*   } */
-        /* if (!crack) { */
-        /*   crack = addChildElement("crack", cracks); */
-        /*   crack->SetAttribute("id", std::stoi(_crackIDStr) - 1); */
-        /*   addChildElement("nodes", crack); */
-        /*   addChildElement("elements", crack); */
-        /* } */
-        /* addMeshForEntity(PhysicalTag, crack); */
+        pt cracks = m_ptree.get_child("topology.cracks");
+        pt::iterator it = cracks.begin();
+        int _crackID = std::stoi(_crackIDStr) - 1;
+        bool existed = false;
+        for (; it != cracks.end(); ++it)
+          if (it->second.get<int>("id") == _crackID) {
+            existed = true;
+            break;
+          }
+        if (!existed) {
+          pt crack;
+          crack.put("id", _crackID);
+          it = cracks.push_back(std::make_pair("", crack));
+          std::cout << "  (Crack #: " << _crackID << " added!)\n";
+        }
+        addMeshForEntity(PhysicalTag, it->second);
       }
     }
   }
@@ -195,7 +199,6 @@ private:
           }
         if (!existed) {
           pt phase;
-          std::cout << "  (Phase " << phase_ID << " added!)\n";
           phase.put("id", phase_ID);
           phase.put("start_time", 0);
           phase.put("total_time", 1000);
@@ -204,25 +207,32 @@ private:
           phase.add_child("boundary_condition.Dirichlet", pt());
           phase.add_child("boundary_condition.Neumann", pt());
           it = root.push_back(std::make_pair("", phase));
+          /* arrayAppend(root, phase, "phase"); */
+          std::cout << "  (Phase #" << phase_ID << " added!)\n";
         }
-        std::cout << _boundaryType << std::endl;
         bool ifNeumann = ifMatch(_boundaryType, ".*neumann.*");
         bool ifDirichlet = ifMatch(_boundaryType, ".*dirichlet.*");
         gmsh::model::mesh::getNodesForPhysicalGroup(
             PhysicalTag.first, PhysicalTag.second, nodeTags, coords);
         for (std::size_t bcNode : nodeTags) {
-          pt newBC;
-          newBC.put("node", bcNode);
-          newBC.put("dof", _dofPosStr);
-          newBC.put("type", "linear");
-          newBC.put("start", PhyName.substr(0, 1) + "_start");
-          newBC.put("end", PhyName.substr(0, 1) + "_end");
+          pt _new_bc;
+          _new_bc.put("node", bcNode);
+          _new_bc.put("dof", _dofPosStr);
+          _new_bc.put("type", "linear");
+          _new_bc.put("start", PhyName.substr(0, 1) + "_start");
+          _new_bc.put("end", PhyName.substr(0, 1) + "_end");
           if (ifDirichlet) {
             it->second.get_child("boundary_condition.Dirichlet")
-                .push_back(std::make_pair("", newBC));
+                .push_back(std::make_pair("", _new_bc));
+            /* arrayAppend(it->second.get_child("boundary_condition.Dirichlet"),
+             */
+            /*             _new_bc, "Dirichlet"); */
           } else if (ifNeumann) {
             it->second.get_child("boundary_condition.Neumann")
-                .push_back(std::make_pair("", newBC));
+                .push_back(std::make_pair("", _new_bc));
+            /* arrayAppend(it->second.get_child("boundary_condition.Dirichlet"),
+             */
+            /*             _new_bc, "Neumann"); */
           } else
             std::cout << "error boundary condition type!\n";
         }
@@ -266,7 +276,8 @@ private:
       _new_mat.put("kf", 402);
       _new_mat.put("q_dilantion", 403);
     }
-    root.push_back(std::make_pair("", _new_mat));
+    /* root.push_back(std::make_pair("", _new_mat)); */
+    arrayAppend(root, _new_mat, "mat");
 
     return;
   }
@@ -298,7 +309,8 @@ private:
         node.put("x1", coord[i * 3 + 0]);
         node.put("x2", coord[i * 3 + 1]);
         node.put("x3", coord[i * 3 + 2]);
-        nodes.push_back(std::make_pair("", node));
+        /* nodes.push_back(std::make_pair("", node)); */
+        arrayAppend(nodes, node, "node");
       }
       std::vector<int> elementTypes;
       std::vector<std::vector<std::size_t>> elementTags;
@@ -319,7 +331,8 @@ private:
           pt elem;
           elem.put("id", m_elemnum);
           elem.put("type", elementType);
-          elem.put("mat", mat_ID);
+          if (mat_ID != -1)
+            elem.put("mat", mat_ID);
           pt nodelist;
           for (std::size_t j = 0; j != (std::size_t)numNodes; ++j) {
             int nodeTag =
@@ -327,10 +340,12 @@ private:
                                       [m_elemnum * std::size_t(numNodes) + j] -
                 1;
             pt tmp(std::to_string(nodeTag));
-            nodelist.push_back(std::make_pair("", tmp));
+            /* nodelist.push_back(std::make_pair("", tmp)); */
+            arrayAppend(nodelist, tmp, "vertex");
           }
           elem.add_child("nodes", nodelist);
-          elements.push_back(std::make_pair("", elem));
+          /* elements.push_back(std::make_pair("", elem)); */
+          arrayAppend(elements, elem, "elem");
         }
       }
     }
@@ -390,13 +405,36 @@ public:
     std::cout << "4." << getSuffix() << " file has been written.\n";
   }
 
+  void arrayAppend(pt &, const pt &, const std::string & = "item") const {}
   std::string getSuffix() const { return std::string(); }
   void writeFile(const std::string &, const pt &) {}
 };
 
-struct gmsh2json {};
-struct gmsh2xml {};
+struct gmsh2json {
+  template <typename P>
+  void addAttribute(boost::property_tree::ptree &_root,
+                    const std::string &_name, const P &_value) const {
+    _root.put(_name, _value);
+  }
+};
+struct gmsh2xml {
+  template <typename P>
+  void addAttribute(boost::property_tree::ptree &_root,
+                    const std::string &_name, const P &_value) const {
+    _root.add("<xmlattr>." + _name, _value);
+  }
+};
 
+template <>
+void gmshParser<gmsh2json>::arrayAppend(pt &_root, const pt &_child,
+                                        const std::string &) const {
+  _root.push_back(std::make_pair("", _child));
+}
+template <>
+void gmshParser<gmsh2xml>::arrayAppend(pt &_root, const pt &_child,
+                                       const std::string &_name) const {
+  _root.add_child(_name, _child);
+}
 template <> std::string gmshParser<gmsh2json>::getSuffix() const {
   return "json";
 }
