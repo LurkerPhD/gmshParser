@@ -1,2 +1,3 @@
 # gmshParser
-parse .msh file to .xml file for my ooxfem
+
+parse .msh file to .xml or .json file for my ooxfem
