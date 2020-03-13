@@ -10,7 +10,7 @@
 *
 *   Last Editors:		pt2.cpp
 *
-*   Last modified:	2020-02-24 17:43
+*   Last modified:	2020-03-13 20:18
 *
 *   Description:		pt2.cpp
 *
@@ -76,7 +76,7 @@ private:
     m_ptree.put("io.log.log_level", "info");
     m_ptree.put("io.log.detail_file_name", "");
     m_ptree.put("io.breakpoint", "");
-    m_ptree.put("io.output.file_name", "");
+    m_ptree.put("io.output.path", "");
 
     /* addCalculationConfiguration(root); */
     m_ptree.put("calculation.paralleled", true);
@@ -103,22 +103,28 @@ private:
     m_ptree.put("topology.shape_function_degree", 1);
     m_ptree.put("topology.elem_nodes_order", "clockwise");
     pt gauss_num, tmp;
-    tmp.put("Segment", 3);
+    tmp.put("name", "Segment");
+    tmp.put("value", 3);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
-    tmp.put("Triangle", 3);
+    tmp.put("name", "Triangle");
+    tmp.put("value", 3);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
-    tmp.put("Quadrangle", 4);
+    tmp.put("name", "Quadrangle");
+    tmp.put("value", 4);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
-    tmp.put("Tetrahedral", 4);
+    tmp.put("name", "Tetrahedral");
+    tmp.put("value", 4);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
-    tmp.put("Tri_prism", 6);
+    tmp.put("name", "Tri_prism");
+    tmp.put("value", 6);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
-    tmp.put("Octahedral", 8);
+    tmp.put("name", "Octahedral");
+    tmp.put("value", 8);
     arrayAppend(gauss_num, tmp, "nGP");
     m_ptree.add_child("topology.elem_gauss_num", gauss_num);
     m_ptree.put("topology.cracks", "");
@@ -220,7 +226,7 @@ private:
           pt _new_bc;
           _new_bc.put("node", bcNode - 1);
           _new_bc.put("dof", _dofPosStr);
-          _new_bc.put("type", "linear");
+          _new_bc.put("type", "Linear");
           _new_bc.put("start", PhyName.substr(0, 1) + "_start");
           _new_bc.put("end", PhyName.substr(0, 1) + "_end");
           if(ifDirichlet) {
@@ -361,20 +367,20 @@ private:
 public:
   /// default constructor
   gmshParser()
-                        : m_ptree(),
-                          m_fileName(),
-                          m_dim(0),
-                          m_elemnum(0),
-                          m_mat_list(),
-                          m_node_list() {}
+      : m_ptree(),
+        m_fileName(),
+        m_dim(0),
+        m_elemnum(0),
+        m_mat_list(),
+        m_node_list() {}
   /// constructor with file name
   gmshParser(const std::string& _fileName)
-                        : m_ptree(),
-                          m_fileName(_fileName),
-                          m_dim(0),
-                          m_elemnum(0),
-                          m_mat_list(),
-                          m_node_list() {}
+      : m_ptree(),
+        m_fileName(_fileName),
+        m_dim(0),
+        m_elemnum(0),
+        m_mat_list(),
+        m_node_list() {}
   /// default destructor
   ~gmshParser() = default;
 
@@ -426,12 +432,17 @@ public:
     std::cout << "4." << getSuffix() << " file has been written.\n";
   }
 
-  void        arrayAppend(pt&, const pt&, const std::string& = "item") const {}
+  void arrayAppend(pt&, const pt&, const std::string& = "item") const {}
+
   std::string getSuffix() const {
     return std::string();
   }
+
   void writeFile(const std::string&, const pt&) {}
 };
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
 
 struct gmsh2json {
   template <typename P>
@@ -449,6 +460,9 @@ struct gmsh2xml {
     _root.add("<xmlattr>." + _name, _value);
   }
 };
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
 
 template <>
 void gmshParser<gmsh2json>::arrayAppend(pt&       _root,
@@ -462,6 +476,10 @@ void gmshParser<gmsh2xml>::arrayAppend(pt&                _root,
                                        const std::string& _name) const {
   _root.add_child(_name, _child);
 }
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+
 template <>
 std::string gmshParser<gmsh2json>::getSuffix() const {
   return "json";
@@ -470,6 +488,9 @@ template <>
 std::string gmshParser<gmsh2xml>::getSuffix() const {
   return "xml";
 }
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
 
 template <>
 void gmshParser<gmsh2json>::writeFile(const std::string& _fileNameWithPath,
