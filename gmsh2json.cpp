@@ -10,48 +10,22 @@
 *
 *   Last Editors: Wang Zhecheng - wangzhecheng@yeah.net
 *
-*   Last modified:	2020-03-10 12:10
+*   Last modified:	2020-03-21 01:14
 *
 *   Description:
 *
 =============================================================================*/
 #include "gmshParser.hpp"
-#include <dirent.h>
-#include <iostream>
-#include <regex>
+#include <filesystem>
 
-void parseDirectory(const std::string& _path) {
-  std::string path = _path;
-  if(path.back() != 47)
-    path.append("/");
-
-  struct dirent* next_file = NULL;
-  DIR*           dir       = opendir(path.c_str());
-
-  if(!dir)
+void parse_directory(const std::filesystem::path& path) {
+  gmshParser<gmsh2json> parser;
+  if(path.empty())
     return;
+  for(auto& p : std::filesystem::recursive_directory_iterator(path))
+    if(p.path().extension() == ".msh")
+      parser.parseGmshFile(p);
 
-  while((next_file = readdir(dir))) {
-    DIR*        sub_dir = nullptr;
-    FILE*       file    = nullptr;
-    std::string abs_path;
-    if(*(next_file->d_name) != '.') {
-      abs_path = path + next_file->d_name;
-      if((sub_dir = opendir(abs_path.c_str()))) {
-        closedir(sub_dir);
-        parseDirectory(abs_path);
-      }
-      else {
-        auto [if_xml, postfix] = parseName(abs_path, ".*[/|\\\\].+?\\.(.{3})$");
-        if(if_xml && (file = fopen(abs_path.c_str(), "r"))
-           && postfix.compare("msh") == 0) {
-          fclose(file);
-          gmshParser<gmsh2json> parser;
-          parser.parseGmshFile(abs_path);
-        }
-      }
-    }
-  }
   return;
 }
 
@@ -62,9 +36,10 @@ int main(int argc, char const* argv[]) {
     filename = argv[1];
   else
     // filename = "/Users/lurker.phd/Documents/geoxfem/gmshParser";
-    filename = "/Users/lurker.phd/Documents/geoxfem/demo";
+    // filename = "/Users/lurker.phd/Documents/geoxfem/demo";
+     filename = "/Users/lurker.phd/Documents/geoxfem/test/test_crack";
 
-  parseDirectory(filename.c_str());
+  parse_directory(filename.c_str());
 
   return 0;
 }

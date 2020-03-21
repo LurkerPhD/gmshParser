@@ -10,7 +10,7 @@
 *
 *   Last Editors:		pt2.cpp
 *
-*   Last modified:	2020-03-13 20:18
+*   Last modified:	2020-03-21 01:25
 *
 *   Description:		pt2.cpp
 *
@@ -21,6 +21,7 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
+#include <filesystem>
 #include <gmsh.h>
 #include <iostream>
 #include <memory>
@@ -31,7 +32,7 @@
 #include <unordered_set>
 #include <vector>
 
-inline std::pair<bool, std::string> parseName(const std::string& _src,
+inline std::pair<bool, std::string> parseName(const std::string& _src, /*{{{*/
                                               const std::string& _patternStr,
                                               const std::size_t& _index = 1) {
   std::smatch result;
@@ -46,23 +47,23 @@ inline bool ifMatch(const std::string& _src, const std::string& _patternStr) {
   std::smatch result;
   std::regex  _pattern(_patternStr.c_str(), std::regex::icase);
   return std::regex_match(_src, result, _pattern);
-}
+} /*}}}*/
 
 template <typename T>
 class gmshParser {
   using pt = boost::property_tree::ptree;
 
 private:
-  pt            m_ptree;
-  std::string   m_fileName;
-  int           m_dim;
-  std::size_t   m_elemnum;
-  std::set<int> m_mat_list;
-  std::set<int> m_node_list;
+  pt                    m_ptree;
+  std::filesystem::path m_file_name;
+  int                   m_dim;
+  std::size_t           m_elemnum;
+  std::set<int>         m_mat_list;
+  std::set<int>         m_node_list;
 
-  void buildMainFrame() {
+  void buildMainFrame() { /*{{{*/
     /* add description node */
-    m_ptree.put("description.name", m_fileName.c_str());
+    m_ptree.put("description.name", m_file_name.string());
     m_ptree.put("description.method", "FEM");
     m_ptree.put("description.unknown", "Displace+Biot");
     m_ptree.put("description.displace_pattern", "Standard+Signeded+Branch");
@@ -138,8 +139,8 @@ private:
 
     /* addPhases(root); */
     m_ptree.put("phases", "");
-  }
-  void addMesh(const int& _dim = -1) {
+  }                                    /*}}}*/
+  void addMesh(const int& _dim = -1) { /*{{{*/
     gmsh::vectorpair PhysicalTags;
     gmsh::model::getPhysicalGroups(PhysicalTags, _dim);
     std::vector<int> _listElement;
@@ -160,7 +161,7 @@ private:
         addMeshForEntity(PhysicalTag, m_ptree.get_child("topology"), mat_ID);
       }
       else if(_isCrack) {
-        pt           cracks   = m_ptree.get_child("topology.cracks");
+        pt       &    cracks   = m_ptree.get_child("topology.cracks");
         pt::iterator it       = cracks.begin();
         int          _crackID = std::stoi(_crackIDStr) - 1;
         bool         existed  = false;
@@ -178,8 +179,8 @@ private:
         addMeshForEntity(PhysicalTag, it->second);
       }
     }
-  }
-  void addBoundaries(pt& root) {
+  }                              /*}}}*/
+  void addBoundaries(pt& root) { /*{{{*/
     gmsh::vectorpair PhysicalTags;
     gmsh::model::getPhysicalGroups(PhysicalTags);
 
@@ -248,9 +249,8 @@ private:
         }
       }
     }
-  }
-
-  void addMaterial(pt& root, const std::string& type, const int& id) {
+  }                                                                    /*}}}*/
+  void addMaterial(pt& root, const std::string& type, const int& id) { /*{{{*/
     if(m_mat_list.find(id) != m_mat_list.end())
       return;
     std::cout << "  (New " << type << " material added!)\n";
@@ -263,9 +263,9 @@ private:
     _new_mat.put("friction_angle", 30);
     _new_mat.put("dilation_angle", 30);
     _new_mat.put("cohesion,", 10);
+    _new_mat.put("perm_x0", 1e-5);
     _new_mat.put("perm_x1", 1e-5);
     _new_mat.put("perm_x2", 1e-5);
-    _new_mat.put("perm_x3", 1e-5);
     _new_mat.put("zeta", 0.1);
     _new_mat.put("K_IC", 2.9);
     _new_mat.put("elastic_modulus", 1e4);
@@ -292,9 +292,8 @@ private:
     arrayAppend(root, _new_mat, "mat");
 
     return;
-  }
-
-  void addMeshForEntity(const std::pair<int, int>& PhysicalTag,
+  }                                                             /*}}}*/
+  void addMeshForEntity(const std::pair<int, int>& PhysicalTag, /*{{{*/
                         pt&                        root,
                         const int&                 mat_ID = -1) {
     std::map<int, std::string> ElementTypeNameMap = {
@@ -318,9 +317,9 @@ private:
         m_node_list.emplace(nodeTag);
         pt node;
         node.put("id", nodeTag - 1);
-        node.put("x1", coord[i * 3 + 0]);
-        node.put("x2", coord[i * 3 + 1]);
-        node.put("x3", coord[i * 3 + 2]);
+        node.put("x0", coord[i * 3 + 0]);
+        node.put("x1", coord[i * 3 + 1]);
+        node.put("x2", coord[i * 3 + 2]);
         /* nodes.push_back(std::make_pair("", node)); */
         arrayAppend(nodes, node, "node");
       }
@@ -338,17 +337,17 @@ private:
         gmsh::model::mesh::getElementProperties(elementTypes[i], elemName,
                                                 elemDim, elemOrder, numNodes,
                                                 parametricCoord1);
-        for(std::size_t nElement = elementTags[i].size(); m_elemnum != nElement;
-            ++m_elemnum) {
+        for(std::size_t local_id=0,nElement = elementTags[i].size(); local_id != nElement;
+            ++local_id) {
           pt elem;
-          elem.put("id", m_elemnum);
+          elem.put("id", m_elemnum++);
           elem.put("type", elementType);
           if(mat_ID != -1)
             elem.put("mat", mat_ID);
           pt nodelist;
           for(std::size_t j = 0; j != (std::size_t)numNodes; ++j) {
             int nodeTag =
-              (int)nodeInElementTags[i][m_elemnum * std::size_t(numNodes) + j]
+              (int)nodeInElementTags[i][local_id * std::size_t(numNodes) + j]
               - 1;
             pt tmp(std::to_string(nodeTag));
             /* nodelist.push_back(std::make_pair("", tmp)); */
@@ -362,21 +361,21 @@ private:
     }
     root.add_child("nodes", nodes);
     root.add_child("elements", elements);
-  }
+  } /*}}}*/
 
 public:
   /// default constructor
   gmshParser()
       : m_ptree(),
-        m_fileName(),
+        m_file_name(),
         m_dim(0),
         m_elemnum(0),
         m_mat_list(),
         m_node_list() {}
   /// constructor with file name
-  gmshParser(const std::string& _fileName)
+  gmshParser(const std::filesystem::path& _fileName)
       : m_ptree(),
-        m_fileName(_fileName),
+        m_file_name(_fileName),
         m_dim(0),
         m_elemnum(0),
         m_mat_list(),
@@ -384,11 +383,11 @@ public:
   /// default destructor
   ~gmshParser() = default;
 
-  void setFileName(const std::string& _fileName) {
-    m_fileName = _fileName;
+  void setFileName(const std::filesystem::path& _fileName) {
+    m_file_name = _fileName;
   }
-  std::string getFileName() const {
-    return m_fileName;
+  std::filesystem::path getFileName() const {
+    return m_file_name;
   }
 
   void setDimension(const int& _dim) {
@@ -398,16 +397,12 @@ public:
     return m_dim;
   }
 
-  void parseGmshFile(const std::string& _fileNameWithPath) {
-    auto [_bool, _fileName] =
-      parseName(_fileNameWithPath, ".*[/|\\\\](.*).msh");
-    m_fileName = _bool
-                   ? _fileName
-                   : _fileNameWithPath.substr(0, _fileNameWithPath.size() - 4);
+  void parseGmshFile(const std::filesystem::path& file_name_with_path) { /*{{{*/
+    m_file_name = file_name_with_path.stem();
     gmsh::initialize();
-    gmsh::open(_fileNameWithPath);
+    gmsh::open(file_name_with_path);
     std::cout << "------------------------------------\n"
-              << "gmsh file \"" << _fileNameWithPath << "\" imported.\n";
+              << "gmsh file \"" << file_name_with_path << "\" imported.\n";
     m_dim = gmsh::model::getDimension();
     gmsh::model::mesh::renumberNodes();
     gmsh::model::mesh::renumberElements();
@@ -427,10 +422,10 @@ public:
     std::cout << "3. boundary information parsed.\n";
     ////////////////////////////////////////////////////////////////
 
-    auto [_bool1, raw_name] = parseName(_fileNameWithPath, "(.*)\\..{3}$");
+    auto [_bool1, raw_name] = parseName(file_name_with_path, "(.*)\\..{3}$");
     writeFile(raw_name, m_ptree);
     std::cout << "4." << getSuffix() << " file has been written.\n";
-  }
+  } /*}}}*/
 
   void arrayAppend(pt&, const pt&, const std::string& = "item") const {}
 
@@ -438,72 +433,77 @@ public:
     return std::string();
   }
 
-  void writeFile(const std::string&, const pt&) {}
+  void writeFile(const std::filesystem::path&, const pt&) {}
 };
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 
-struct gmsh2json {
+struct gmsh2json { /*{{{*/
   template <typename P>
   void addAttribute(boost::property_tree::ptree& _root,
                     const std::string&           _name,
                     const P&                     _value) const {
     _root.put(_name, _value);
   }
-};
-struct gmsh2xml {
+};                /*}}}*/
+struct gmsh2xml { /*{{{*/
   template <typename P>
   void addAttribute(boost::property_tree::ptree& _root,
                     const std::string&           _name,
                     const P&                     _value) const {
     _root.add("<xmlattr>." + _name, _value);
   }
-};
+}; /*}}}*/
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 
 template <>
-void gmshParser<gmsh2json>::arrayAppend(pt&       _root,
+void gmshParser<gmsh2json>::arrayAppend(pt&       _root, /*{{{*/
                                         const pt& _child,
                                         const std::string&) const {
   _root.push_back(std::make_pair("", _child));
-}
+} /*}}}*/
 template <>
-void gmshParser<gmsh2xml>::arrayAppend(pt&                _root,
+void gmshParser<gmsh2xml>::arrayAppend(pt&                _root, /*{{{*/
                                        const pt&          _child,
                                        const std::string& _name) const {
   _root.add_child(_name, _child);
-}
+} /*}}}*/
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 
 template <>
-std::string gmshParser<gmsh2json>::getSuffix() const {
+std::string gmshParser<gmsh2json>::getSuffix() const { /*{{{*/
   return "json";
-}
+} /*}}}*/
 template <>
-std::string gmshParser<gmsh2xml>::getSuffix() const {
+std::string gmshParser<gmsh2xml>::getSuffix() const { /*{{{*/
   return "xml";
-}
+} /*}}}*/
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 
 template <>
-void gmshParser<gmsh2json>::writeFile(const std::string& _fileNameWithPath,
-                                      const pt&          _ptree) {
-  boost::property_tree::write_json(_fileNameWithPath + "." + getSuffix(),
-                                   _ptree);
-}
+void gmshParser<gmsh2json>::writeFile(/*{{{*/
+                                      const std::filesystem::path&
+                                                file_name_with_path,
+                                      const pt& _ptree) {
+  boost::property_tree::write_json(
+    file_name_with_path.string() + "." + getSuffix(), _ptree);
+} /*}}}*/
 template <>
-void gmshParser<gmsh2xml>::writeFile(const std::string& _fileNameWithPath,
-                                     const pt&          _ptree) {
+void gmshParser<gmsh2xml>::writeFile(/*{{{*/
+                                     const std::filesystem::path&
+                                               file_name_with_path,
+                                     const pt& _ptree) {
   pt root;
   root.add_child("geoxfem_input", _ptree);
-  boost::property_tree::write_xml(_fileNameWithPath + "." + getSuffix(), root);
-}
+  boost::property_tree::write_xml(
+    file_name_with_path.string() + "." + getSuffix(), root);
+} /*}}}*/
 
 #endif /* GMSHPARSER_H */
