@@ -10,7 +10,7 @@
 *
 *   Last Editors:		pt2.cpp
 *
-*   Last modified:	2020-03-21 01:25
+*   Last modified:	2020-03-25 00:44
 *
 *   Description:		pt2.cpp
 *
@@ -78,6 +78,7 @@ private:
     m_ptree.put("io.log.detail_file_name", "");
     m_ptree.put("io.breakpoint", "");
     m_ptree.put("io.output.path", "");
+    m_ptree.put("io.output.multiple", 1);
 
     /* addCalculationConfiguration(root); */
     m_ptree.put("calculation.paralleled", true);
@@ -154,16 +155,16 @@ private:
       auto [_isMesh, _matIDStr]    = parseName(PhyName, ".*mat(\\d+)_.*");
       auto [_isCrack, _crackIDStr] = parseName(PhyName, ".*crack(\\d*).*");
       if(_isMesh) {
-        mat_ID = std::stoi(_matIDStr) - 1;
+        mat_ID = std::stoi(_matIDStr);
         auto [_bool, _matName] =
           parseName(PhyName, ".*mat\\d+_([a-z|0-9|A-Z]+).*");
         addMaterial(m_ptree.get_child("materials"), _matName, mat_ID);
         addMeshForEntity(PhysicalTag, m_ptree.get_child("topology"), mat_ID);
       }
       else if(_isCrack) {
-        pt       &    cracks   = m_ptree.get_child("topology.cracks");
+        pt&          cracks   = m_ptree.get_child("topology.cracks");
         pt::iterator it       = cracks.begin();
-        int          _crackID = std::stoi(_crackIDStr) - 1;
+        int          _crackID = std::stoi(_crackIDStr);
         bool         existed  = false;
         for(; it != cracks.end(); ++it)
           if(it->second.get<int>("id") == _crackID) {
@@ -190,12 +191,16 @@ private:
       std::vector<double>      coords;
       gmsh::model::getPhysicalName(PhysicalTag.first, PhysicalTag.second,
                                    PhyName);
-      /// parsing physical names. sth like "Dirichlet_P1_x1_1"
+      /// parsing physical names. sth like "Dirichlet_P1_x1_1_134.5"
       auto [_isBoundary1, _boundaryType] = parseName(PhyName, "(.*)_P\\d+_.*");
       auto [_isBoundary2, _phaseIDStr]   = parseName(PhyName, ".*P(\\d+)_.*");
       auto [_isBoundary3, _dofPosStr] = parseName(PhyName, ".*P\\d+_(.*?)_.*");
       auto [_isBoundary4, _boundaryIDStr] =
-        parseName(PhyName, ".*P\\d+_.*?_(\\d+?).*");
+        parseName(PhyName, ".*_P\\d+_.*?_(\\d+?).*");
+      auto [if_start_value_given, _start_value] =
+        parseName(PhyName, ".*_P\\d+_.*_.*_(.*)_.*");
+      auto [if_end_value_given, _end_value] =
+        parseName(PhyName, ".*_P\\d+_.*_.*_.*_(.*)");
       if(_isBoundary1) {
         /// find phase
         int          phase_ID = std::stoi(_phaseIDStr) - 1;
@@ -210,9 +215,8 @@ private:
           pt phase;
           phase.put("id", phase_ID);
           phase.put("start_time", 0);
-          phase.put("total_time", 1000);
+          phase.put("total_time", 10);
           phase.put("delta_time", 10);
-          phase.put("element_num", 9);
           phase.add_child("boundary_condition.Dirichlet", pt());
           phase.add_child("boundary_condition.Neumann", pt());
           it = root.push_back(std::make_pair("", phase));
@@ -228,8 +232,13 @@ private:
           _new_bc.put("node", bcNode - 1);
           _new_bc.put("dof", _dofPosStr);
           _new_bc.put("type", "Linear");
-          _new_bc.put("start", PhyName.substr(0, 1) + "_start");
-          _new_bc.put("end", PhyName.substr(0, 1) + "_end");
+          if(!if_start_value_given)
+            _start_value =
+              PhyName.substr(0, 1) + "_" + _boundaryIDStr + "_start";
+          _new_bc.put("start", _start_value);
+          if(!if_end_value_given)
+            _end_value = PhyName.substr(0, 1) + "_" + _boundaryIDStr + "_end";
+          _new_bc.put("end", _end_value);
           if(ifDirichlet) {
             it->second.get_child("boundary_condition.Dirichlet")
               .push_back(std::make_pair("", _new_bc));
@@ -337,8 +346,8 @@ private:
         gmsh::model::mesh::getElementProperties(elementTypes[i], elemName,
                                                 elemDim, elemOrder, numNodes,
                                                 parametricCoord1);
-        for(std::size_t local_id=0,nElement = elementTags[i].size(); local_id != nElement;
-            ++local_id) {
+        for(std::size_t local_id = 0, nElement = elementTags[i].size();
+            local_id != nElement; ++local_id) {
           pt elem;
           elem.put("id", m_elemnum++);
           elem.put("type", elementType);

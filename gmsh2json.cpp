@@ -37,7 +37,8 @@ int main(int argc, char const* argv[]) {
   else
     // filename = "/Users/lurker.phd/Documents/geoxfem/gmshParser";
     // filename = "/Users/lurker.phd/Documents/geoxfem/demo";
-     filename = "/Users/lurker.phd/Documents/geoxfem/test/test_crack";
+    //  filename = "/Users/lurker.phd/Documents/geoxfem/test/test_crack";
+     filename = "/Users/lurker.phd/Documents/geoxfem/test/test_sif";
 
   parse_directory(filename.c_str());
 
