@@ -10,7 +10,7 @@
 *
 *   Last Editors:		pt2.cpp
 *
-*   Last modified:	2020-03-25 00:44
+*   Last modified:	2020-03-27 02:15
 *
 *   Description:		pt2.cpp
 *
@@ -32,9 +32,9 @@
 #include <unordered_set>
 #include <vector>
 
-inline std::pair<bool, std::string> parseName(const std::string& _src, /*{{{*/
-                                              const std::string& _patternStr,
-                                              const std::size_t& _index = 1) {
+inline std::pair<bool, std::string> parse_name(const std::string& _src, /*{{{*/
+                                               const std::string& _patternStr,
+                                               const std::size_t& _index = 1) {
   std::smatch result;
   std::regex  _pattern(_patternStr.c_str(), std::regex::icase);
 
@@ -49,17 +49,199 @@ inline bool ifMatch(const std::string& _src, const std::string& _patternStr) {
   return std::regex_match(_src, result, _pattern);
 } /*}}}*/
 
+struct Element { /*{{{*/
+  size_t              id;
+  int                 type;
+  std::string         info;
+  std::vector<size_t> plist;
+};            /*}}}*/
+struct Node { /*{{{*/
+  size_t      id;
+  double      x;
+  double      y;
+  double      z;
+  std::string info;
+  std::string dof;
+  double      start_value;
+  double      end_value;
+};                     /*}}}*/
+struct PhysicalGroup { /*{{{*/
+  std::string            m_name;
+  std::map<int, Element> m_list_elem;
+  std::map<int, Node>    m_list_node;
+}; /*}}}*/
+
 template <typename T>
 class gmshParser {
-  using pt = boost::property_tree::ptree;
+  using ptree = boost::property_tree::iptree;
 
 private:
-  pt                    m_ptree;
-  std::filesystem::path m_file_name;
-  int                   m_dim;
-  std::size_t           m_elemnum;
-  std::set<int>         m_mat_list;
-  std::set<int>         m_node_list;
+  ptree                                m_ptree;
+  std::filesystem::path                m_file_name;
+  int                                  m_dim;
+  std::size_t                          m_elemnum;
+  std::set<int>                        m_mat_list;
+  std::set<int>                        m_node_list;
+  std::map<std::string, PhysicalGroup> m_list_physical;
+
+  std::map<int, std::string> ElementTypeNameMap;
+
+  ptree toElementPtree(const Element& elem) { /*{{{*/
+    ptree root;
+
+    root.put("id", m_elemnum++);
+    root.put("type", ElementTypeNameMap.at(elem.type));
+    auto [mat, id] = parse_name(elem.info, ".*mat(\\d+)_.*");
+    if(mat)
+      root.put("mat", std::stoi(id));
+    ptree plist;
+    for(auto& v : elem.plist) {
+      ptree tmp(std::to_string(v));
+      arrayAppend(plist, tmp, "vertex");
+    }
+    root.add_child("nodes", plist);
+    return root;
+  }                                           /*}}}*/
+  ptree toNodePtree(const Node& node) const { /*{{{*/
+    ptree root;
+
+    root.put("id", node.id);
+    root.put("x0", node.x);
+    root.put("x1", node.y);
+    root.put("x2", node.z);
+    return root;
+  }                                                   /*}}}*/
+  ptree toBoundaryNodePtree(const Node& node) const { /*{{{*/
+    ptree root;
+
+    root.put("node", node.id);
+    root.put("dof", node.dof);
+    root.put("type", "Linear");
+    root.put("start", node.start_value);
+    root.put("end", node.end_value);
+
+    return root;
+  } /*}}}*/
+
+  void parse() { /*{{{*/
+    gmsh::vectorpair PhysicalTags;
+    gmsh::model::getPhysicalGroups(PhysicalTags);
+    for(auto PhysicalTag : PhysicalTags) {
+      std::string name;
+      gmsh::model::getPhysicalName(PhysicalTag.first, PhysicalTag.second, name);
+      auto p = parsePhysicalGroup(PhysicalTag.first, PhysicalTag.second);
+      m_list_physical.emplace(name, p);
+    }
+    return;
+  }                                                /*}}}*/
+  PhysicalGroup parsePhysicalGroup(const int& dim, /*{{{*/
+                                   const int& physical_tag) {
+    PhysicalGroup p;
+
+    gmsh::model::getPhysicalName(dim, physical_tag, p.m_name);
+
+    int              elemOrder = 0;
+    std::vector<int> EntityTags;
+    gmsh::model::getEntitiesForPhysicalGroup(dim, physical_tag, EntityTags);
+
+    for(auto EntityTag : EntityTags) {
+      std::vector<double>                   parametricCoord;
+      std::vector<int>                      elementTypes;
+      std::vector<std::vector<std::size_t>> elementTags;
+      std::vector<std::vector<std::size_t>> nodeInElementTags;
+      gmsh::model::mesh::getElements(elementTypes, elementTags,
+                                     nodeInElementTags, dim, EntityTag);
+      for(std::size_t i = 0, nTypes = elementTypes.size(); i < nTypes; ++i) {
+        std::string elemName;
+        int         elemDim, numNodes;
+        std::string elementType = ElementTypeNameMap[elementTypes[i]];
+        gmsh::model::mesh::getElementProperties(elementTypes[i], elemName,
+                                                elemDim, elemOrder, numNodes,
+                                                parametricCoord);
+        size_t num_elem = elementTags[i].size();
+        for(size_t elem_id = 0; elem_id != num_elem; ++elem_id) {
+          Element elem;
+          /* elem.id   = m_elemnum++; */
+          elem.type = elementTypes[i];
+          elem.info = p.m_name;
+          for(size_t j = 0; j != static_cast<size_t>(numNodes); ++j) {
+            int nodeTag =
+              (int)nodeInElementTags[i][elem_id * std::size_t(numNodes) + j]
+              - 1;
+            elem.plist.emplace_back(nodeTag);
+          }
+          p.m_list_elem.emplace(p.m_list_elem.size(), elem);
+        }
+      }
+      ////////////////////////////////////////////////////////////////
+      ////////////////////////////////////////////////////////////////
+      std::vector<size_t> nodeTags;
+      std::vector<double> coord;
+      gmsh::model::mesh::getNodes(nodeTags, coord, parametricCoord, dim,
+                                  EntityTag, true);
+      for(std::size_t i = 0, nn = nodeTags.size(); i != nn; ++i) {
+        Node node;
+        node.id              = nodeTags[i] - 1;
+        node.x               = coord[i * 3 + 0];
+        node.y               = coord[i * 3 + 1];
+        node.z               = coord[i * 3 + 2];
+        node.info            = p.m_name;
+        auto [if1, dof_name] = parse_name(p.m_name, ".*_P\\d+_(.*?)_.*");
+        if(if1)
+          node.dof = dof_name;
+        p.m_list_node.emplace(node.id, node);
+      }
+    }
+    ////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////
+    auto [if1, start_str] =
+      parse_name(p.m_name, "dirichlet_P\\d+_.*_.*_(.*)_.*");
+    auto [if2, end_str] = parse_name(p.m_name, "dirichlet_P\\d+_.*_.*_.*_(.*)");
+    if(if1) {
+      double start_value = std::stod(start_str);
+      double end_value   = std::stod(end_str);
+      for(auto& node : p.m_list_node) {
+        node.second.start_value = start_value;
+        node.second.end_value   = end_value;
+      }
+    }
+    auto [if3, start_str1] =
+      parse_name(p.m_name, "neumann_P\\d+_.*_.*_(.*)_.*");
+    auto [if4, end_str1] = parse_name(p.m_name, "neumann_P\\d+_.*_.*_.*_(.*)");
+    if(if3) {
+      double start_value = std::stod(start_str1);
+      double end_value   = std::stod(end_str1);
+      for(auto& elem : p.m_list_elem) {
+        switch(elem.second.type) {
+        case 1: {
+          Node&  p0     = p.m_list_node.at(elem.second.plist.at(0));
+          Node&  p1     = p.m_list_node.at(elem.second.plist.at(1));
+          double length = sqrt(pow(p0.x - p1.x, 2) + pow(p0.y - p1.y, 2));
+          p0.start_value += length * 0.5 * start_value;
+          p0.end_value += length * 0.5 * end_value;
+          p1.start_value += length * 0.5 * start_value;
+          p1.end_value += length * 0.5 * end_value;
+        }
+        case 8: {
+          Node&  p0     = p.m_list_node.at(elem.second.plist.at(0));
+          Node&  p1     = p.m_list_node.at(elem.second.plist.at(1));
+          Node&  p2     = p.m_list_node.at(elem.second.plist.at(2));
+          double length = sqrt(pow(p0.x - p1.x, 2) + pow(p0.y - p1.y, 2));
+          p0.start_value += length / 6. * start_value;
+          p0.end_value += length / 6. * end_value;
+          p1.start_value += length / 6. * start_value;
+          p1.end_value += length / 6. * end_value;
+          p2.start_value += length * 2. / 3. * start_value;
+          p2.end_value += length * 2. / 3. * end_value;
+        }
+        default:
+          break;
+        }
+      }
+    }
+    return p;
+  } /*}}}*/
 
   void buildMainFrame() { /*{{{*/
     /* add description node */
@@ -70,19 +252,16 @@ private:
     m_ptree.put("description.equation", "Static");
     m_ptree.put("description.solver", "Implicit");
     m_ptree.put("description.load", "Incremental");
-    if(m_dim == 2)
-      m_ptree.put("description.plane_stress", false);
 
     /* add Describe(root); */
     m_ptree.put("io.log.log_level", "info");
     m_ptree.put("io.log.detail_file_name", "");
     m_ptree.put("io.breakpoint", "");
     m_ptree.put("io.output.path", "");
-    m_ptree.put("io.output.multiple", 1);
 
     /* addCalculationConfiguration(root); */
     m_ptree.put("calculation.paralleled", true);
-    m_ptree.put("calculation.time_step.theta", 0.8);
+    m_ptree.put("calculation.time_step.theta", 1);
     m_ptree.put("calculation.time_step.large_defomation", false);
     m_ptree.put("calculation.iteration.max_time", 100);
     m_ptree.put("calculation.iteration.nonlinear_scheme", "initial_stress");
@@ -104,17 +283,17 @@ private:
     /* addTopology(root); */
     m_ptree.put("topology.shape_function_degree", 1);
     m_ptree.put("topology.elem_nodes_order", "clockwise");
-    pt gauss_num, tmp;
+    ptree gauss_num, tmp;
     tmp.put("name", "Segment");
     tmp.put("value", 3);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
     tmp.put("name", "Triangle");
-    tmp.put("value", 3);
+    tmp.put("value", 16);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
     tmp.put("name", "Quadrangle");
-    tmp.put("value", 4);
+    tmp.put("value", 9);
     arrayAppend(gauss_num, tmp, "nGP");
     tmp.clear();
     tmp.put("name", "Tetrahedral");
@@ -129,143 +308,115 @@ private:
     tmp.put("value", 8);
     arrayAppend(gauss_num, tmp, "nGP");
     m_ptree.add_child("topology.elem_gauss_num", gauss_num);
-    m_ptree.put("topology.cracks", "");
+    m_ptree.add_child("topology.cracks", ptree{});
 
     /* addMaterials(root); */
-    m_ptree.put("materials", "");
+    m_ptree.add_child("materials", ptree{});
 
     /* addInitCondition(root); */
-    m_ptree.put("init_condition.init_displacement", "");
-    m_ptree.put("init_condition.init_pore", "");
+    m_ptree.add_child("init_condition.init_displacement", ptree{});
+    m_ptree.add_child("init_condition.init_pore", ptree{});
 
     /* addPhases(root); */
-    m_ptree.put("phases", "");
-  }                                    /*}}}*/
-  void addMesh(const int& _dim = -1) { /*{{{*/
-    gmsh::vectorpair PhysicalTags;
-    gmsh::model::getPhysicalGroups(PhysicalTags, _dim);
-    std::vector<int> _listElement;
-
-    for(auto PhysicalTag : PhysicalTags) {
-      int         mat_ID;
-      std::string PhyName;
-      gmsh::model::getPhysicalName(PhysicalTag.first, PhysicalTag.second,
-                                   PhyName);
-
-      auto [_isMesh, _matIDStr]    = parseName(PhyName, ".*mat(\\d+)_.*");
-      auto [_isCrack, _crackIDStr] = parseName(PhyName, ".*crack(\\d*).*");
-      if(_isMesh) {
-        mat_ID = std::stoi(_matIDStr);
-        auto [_bool, _matName] =
-          parseName(PhyName, ".*mat\\d+_([a-z|0-9|A-Z]+).*");
-        addMaterial(m_ptree.get_child("materials"), _matName, mat_ID);
-        addMeshForEntity(PhysicalTag, m_ptree.get_child("topology"), mat_ID);
-      }
-      else if(_isCrack) {
-        pt&          cracks   = m_ptree.get_child("topology.cracks");
-        pt::iterator it       = cracks.begin();
-        int          _crackID = std::stoi(_crackIDStr);
-        bool         existed  = false;
-        for(; it != cracks.end(); ++it)
-          if(it->second.get<int>("id") == _crackID) {
-            existed = true;
-            break;
-          }
-        if(!existed) {
-          pt crack;
-          crack.put("id", _crackID);
-          it = cracks.push_back(std::make_pair("", crack));
-          std::cout << "  (Crack #: " << _crackID << " added!)\n";
-        }
-        addMeshForEntity(PhysicalTag, it->second);
+    m_ptree.add_child("phases", ptree{});
+  }                /*}}}*/
+  void addMesh() { /*{{{*/
+    ptree nodes;
+    ptree elements;
+    for(auto& p : m_list_physical) {
+      std::string name      = p.second.m_name;
+      auto [match, mat_str] = parse_name(name, ".*mat(\\d+)_.*");
+      if(match) {
+        int mat_id = std::stoi(mat_str);
+        auto [not_use, mat_type] =
+          parse_name(name, ".*mat\\d+_([a-z|0-9|A-Z]+).*");
+        addMaterial(m_ptree.get_child("materials"), mat_type, mat_id);
+        for(auto& node : p.second.m_list_node)
+          arrayAppend(nodes, toNodePtree(node.second), "vertex");
+        for(auto& elem : p.second.m_list_elem)
+          arrayAppend(elements, toElementPtree(elem.second), "elem");
       }
     }
-  }                              /*}}}*/
-  void addBoundaries(pt& root) { /*{{{*/
-    gmsh::vectorpair PhysicalTags;
-    gmsh::model::getPhysicalGroups(PhysicalTags);
+    m_ptree.add_child("topology.nodes", nodes);
+    m_ptree.add_child("topology.elements", elements);
+    return;
+  }                 /*}}}*/
+  void addCrack() { /*{{{*/
+    for(auto& p : m_list_physical) {
+      std::string name        = p.second.m_name;
+      auto [match, crack_str] = parse_name(name, ".*crack(\\d+)_.*");
 
-    for(auto PhysicalTag : PhysicalTags) {
-      std::string              PhyName;
-      std::vector<std::size_t> nodeTags;
-      std::vector<double>      coords;
-      gmsh::model::getPhysicalName(PhysicalTag.first, PhysicalTag.second,
-                                   PhyName);
-      /// parsing physical names. sth like "Dirichlet_P1_x1_1_134.5"
-      auto [_isBoundary1, _boundaryType] = parseName(PhyName, "(.*)_P\\d+_.*");
-      auto [_isBoundary2, _phaseIDStr]   = parseName(PhyName, ".*P(\\d+)_.*");
-      auto [_isBoundary3, _dofPosStr] = parseName(PhyName, ".*P\\d+_(.*?)_.*");
-      auto [_isBoundary4, _boundaryIDStr] =
-        parseName(PhyName, ".*_P\\d+_.*?_(\\d+?).*");
-      auto [if_start_value_given, _start_value] =
-        parseName(PhyName, ".*_P\\d+_.*_.*_(.*)_.*");
-      auto [if_end_value_given, _end_value] =
-        parseName(PhyName, ".*_P\\d+_.*_.*_.*_(.*)");
-      if(_isBoundary1) {
-        /// find phase
-        int          phase_ID = std::stoi(_phaseIDStr) - 1;
-        pt::iterator it       = root.begin();
-        bool         existed  = false;
-        for(; it != root.end(); ++it)
-          if(it->second.get<int>("id") == phase_ID) {
-            existed = true;
-            break;
-          }
-        if(!existed) {
-          pt phase;
-          phase.put("id", phase_ID);
-          phase.put("start_time", 0);
-          phase.put("total_time", 10);
-          phase.put("delta_time", 10);
-          phase.add_child("boundary_condition.Dirichlet", pt());
-          phase.add_child("boundary_condition.Neumann", pt());
-          it = root.push_back(std::make_pair("", phase));
-          /* arrayAppend(root, phase, "phase"); */
-          std::cout << "  (Phase #" << phase_ID << " added!)\n";
-        }
-        bool ifNeumann   = ifMatch(_boundaryType, ".*neumann.*");
-        bool ifDirichlet = ifMatch(_boundaryType, ".*dirichlet.*");
-        gmsh::model::mesh::getNodesForPhysicalGroup(
-          PhysicalTag.first, PhysicalTag.second, nodeTags, coords);
-        for(std::size_t bcNode : nodeTags) {
-          pt _new_bc;
-          _new_bc.put("node", bcNode - 1);
-          _new_bc.put("dof", _dofPosStr);
-          _new_bc.put("type", "Linear");
-          if(!if_start_value_given)
-            _start_value =
-              PhyName.substr(0, 1) + "_" + _boundaryIDStr + "_start";
-          _new_bc.put("start", _start_value);
-          if(!if_end_value_given)
-            _end_value = PhyName.substr(0, 1) + "_" + _boundaryIDStr + "_end";
-          _new_bc.put("end", _end_value);
-          if(ifDirichlet) {
-            it->second.get_child("boundary_condition.Dirichlet")
-              .push_back(std::make_pair("", _new_bc));
-            /* arrayAppend(it->second.get_child("boundary_condition.Dirichlet"),
-             */
-            /*             _new_bc, "Dirichlet"); */
-          }
-          else if(ifNeumann) {
-            it->second.get_child("boundary_condition.Neumann")
-              .push_back(std::make_pair("", _new_bc));
-            /* arrayAppend(it->second.get_child("boundary_condition.Dirichlet"),
-             */
-            /*             _new_bc, "Neumann"); */
-          }
-          else
-            std::cout << "error boundary condition type!\n";
+      if(match) {
+        ptree cracks = m_ptree.get_child("topology.cracks");
+        ptree crack;
+        ptree nodes;
+        ptree elements;
+        crack.put("id", std::stoi(crack_str));
+        for(auto& node : p.second.m_list_node)
+          arrayAppend(nodes, toNodePtree(node.second), "node");
+        for(auto& elem : p.second.m_list_elem)
+          arrayAppend(elements, toElementPtree(elem.second), "elem");
+        crack.add_child("nodes", nodes);
+        crack.add_child("elements", elements);
+        arrayAppend(cracks, crack, "crack");
+      }
+    }
+    return;
+  }                    /*}}}*/
+  void addBoundary() { /*{{{*/
+    ptree& root = m_ptree.get_child("phases");
+    for(auto& p : m_list_physical) {
+      std::string name           = p.second.m_name;
+      auto [match, boundary_str] = parse_name(name, ".*_P\\d+_.*");
+      if(match) {
+        auto [isBoundary1, _phaseIDStr] = parse_name(name, ".*P(\\d+)_.*");
+        auto [isBoundary2, bc_type]     = parse_name(name, "(.*)_P\\d+_.*");
+        if(isBoundary1) {
+          /// find phase
+          int             phase_ID = std::stoi(_phaseIDStr) - 1;
+          ptree::iterator it       = root.begin();
+          bool            existed  = false;
+          for(; it != root.end(); ++it)
+            if(it->second.get<int>("id") == phase_ID) {
+              existed = true;
+              break;
+            }
+          // creat new phase node if not exsited
+          if(!existed)
+            it = addPhase(phase_ID);
+          ptree& boundary =
+            it->second.get_child("boundary_condition." + bc_type);
+          for(auto& node : p.second.m_list_node)
+            arrayAppend(boundary, toBoundaryNodePtree(node.second), "bcnode");
         }
       }
     }
-  }                                                                    /*}}}*/
-  void addMaterial(pt& root, const std::string& type, const int& id) { /*{{{*/
+    return;
+  } /*}}}*/
+
+  ptree::iterator addPhase(const size_t& id) { /*{{{*/
+    ptree& phases = m_ptree.get_child("phases");
+    ptree  phase;
+    phase.put("id", id);
+    phase.put("start_time", 0);
+    phase.put("total_time", 10);
+    phase.put("delta_time", 10);
+    phase.add_child("boundary_condition.Dirichlet", ptree());
+    phase.add_child("boundary_condition.Neumann", ptree());
+    std::cout << "  (Phase #" << id << " added!)\n";
+    return phases.push_back(std::make_pair("", phase));
+  } /*}}}*/
+
+  void addMaterial(/*{{{*/
+                   ptree&             root,
+                   const std::string& type,
+                   const int&         id) {
     if(m_mat_list.find(id) != m_mat_list.end())
       return;
     std::cout << "  (New " << type << " material added!)\n";
     m_mat_list.emplace(id);
 
-    pt _new_mat;
+    ptree _new_mat;
     _new_mat.put("id", id);
     _new_mat.put("type", type);
     _new_mat.put("volume_weight", 19);
@@ -297,79 +448,16 @@ private:
       _new_mat.put("kf", 402);
       _new_mat.put("q_dilantion", 403);
     }
-    /* root.push_back(std::make_pair("", _new_mat)); */
     arrayAppend(root, _new_mat, "mat");
 
     return;
-  }                                                             /*}}}*/
-  void addMeshForEntity(const std::pair<int, int>& PhysicalTag, /*{{{*/
-                        pt&                        root,
-                        const int&                 mat_ID = -1) {
-    std::map<int, std::string> ElementTypeNameMap = {
-      {1, "segment"},    {2, "Triangle"}, {3, "Quadrangle"}, {4, "Tetrahedron"},
-      {5, "Hexahedron"}, {6, "Prism"},    {7, "Pyramid"}};
-    pt               nodes, elements;
-    int              elemOrder = 0;
-    std::vector<int> EntityTags;
-    gmsh::model::getEntitiesForPhysicalGroup(PhysicalTag.first,
-                                             PhysicalTag.second, EntityTags);
-    for(auto EntityTag : EntityTags) {
-      std::vector<std::size_t> nodeTags;
-      std::vector<double>      coord;
-      std::vector<double>      parametricCoord;
-      gmsh::model::mesh::getNodes(nodeTags, coord, parametricCoord,
-                                  PhysicalTag.first, EntityTag, true);
-      for(std::size_t i = 0, nn = nodeTags.size(); i != nn; ++i) {
-        int nodeTag = (int)nodeTags[i];
-        if(m_node_list.find(nodeTag) != m_node_list.end())
-          continue;
-        m_node_list.emplace(nodeTag);
-        pt node;
-        node.put("id", nodeTag - 1);
-        node.put("x0", coord[i * 3 + 0]);
-        node.put("x1", coord[i * 3 + 1]);
-        node.put("x2", coord[i * 3 + 2]);
-        /* nodes.push_back(std::make_pair("", node)); */
-        arrayAppend(nodes, node, "node");
-      }
-      std::vector<int>                      elementTypes;
-      std::vector<std::vector<std::size_t>> elementTags;
-      std::vector<std::vector<std::size_t>> nodeInElementTags;
-      gmsh::model::mesh::getElements(elementTypes, elementTags,
-                                     nodeInElementTags, PhysicalTag.first,
-                                     EntityTag);
-      for(std::size_t i = 0, nTypes = elementTypes.size(); i < nTypes; ++i) {
-        std::string         elemName;
-        int                 elemDim, numNodes;
-        std::vector<double> parametricCoord1;
-        std::string         elementType = ElementTypeNameMap[elementTypes[i]];
-        gmsh::model::mesh::getElementProperties(elementTypes[i], elemName,
-                                                elemDim, elemOrder, numNodes,
-                                                parametricCoord1);
-        for(std::size_t local_id = 0, nElement = elementTags[i].size();
-            local_id != nElement; ++local_id) {
-          pt elem;
-          elem.put("id", m_elemnum++);
-          elem.put("type", elementType);
-          if(mat_ID != -1)
-            elem.put("mat", mat_ID);
-          pt nodelist;
-          for(std::size_t j = 0; j != (std::size_t)numNodes; ++j) {
-            int nodeTag =
-              (int)nodeInElementTags[i][local_id * std::size_t(numNodes) + j]
-              - 1;
-            pt tmp(std::to_string(nodeTag));
-            /* nodelist.push_back(std::make_pair("", tmp)); */
-            arrayAppend(nodelist, tmp, "vertex");
-          }
-          elem.add_child("nodes", nodelist);
-          /* elements.push_back(std::make_pair("", elem)); */
-          arrayAppend(elements, elem, "elem");
-        }
-      }
-    }
-    root.add_child("nodes", nodes);
-    root.add_child("elements", elements);
+  } /*}}}*/
+
+  std::string getSuffix() const { /*{{{*/
+    return std::string();
+  }                                                            /*}}}*/
+  void writeFile(const std::filesystem::path&, const ptree&) { /*{{{*/
+    throw "not implemented yet";
   } /*}}}*/
 
 public:
@@ -380,7 +468,15 @@ public:
         m_dim(0),
         m_elemnum(0),
         m_mat_list(),
-        m_node_list() {}
+        m_node_list() {
+    ElementTypeNameMap = {{1, "segment"},     {8, "segment"},      //
+                          {2, "triangle"},    {9, "triangle"},     //
+                          {3, "quadrangle"},  {16, "quadrangle"},  //
+                          {4, "tetrahedron"},                      //
+                          {5, "hexahedron"},                       //
+                          {6, "prism"},                            //
+                          {7, "pyramid"}};
+  }
   /// constructor with file name
   gmshParser(const std::filesystem::path& _fileName)
       : m_ptree(),
@@ -395,15 +491,9 @@ public:
   void setFileName(const std::filesystem::path& _fileName) {
     m_file_name = _fileName;
   }
-  std::filesystem::path getFileName() const {
-    return m_file_name;
-  }
 
-  void setDimension(const int& _dim) {
-    m_dim = _dim;
-  }
-  int getDimension() const {
-    return m_dim;
+  void arrayAppend(ptree&, const ptree&, const std::string& = "item") const {
+    throw "not implemented yet";
   }
 
   void parseGmshFile(const std::filesystem::path& file_name_with_path) { /*{{{*/
@@ -415,34 +505,21 @@ public:
     m_dim = gmsh::model::getDimension();
     gmsh::model::mesh::renumberNodes();
     gmsh::model::mesh::renumberElements();
+    parse();
     ////////////////////////////////////////////////////////////////
 
     buildMainFrame();
     std::cout << "1. " << getSuffix() << " file created.\n";
-    ////////////////////////////////////////////////////////////////
-
-    /// get crack mesh
     addMesh();
     std::cout << "2. mesh information parsed.\n";
-    ////////////////////////////////////////////////////////////////
-
-    /// get all boundary condition information
-    addBoundaries(m_ptree.get_child("phases"));
+    addBoundary();
     std::cout << "3. boundary information parsed.\n";
-    ////////////////////////////////////////////////////////////////
+    // addCrack();
 
-    auto [_bool1, raw_name] = parseName(file_name_with_path, "(.*)\\..{3}$");
+    auto [_bool1, raw_name] = parse_name(file_name_with_path, "(.*)\\..{3}$");
     writeFile(raw_name, m_ptree);
     std::cout << "4." << getSuffix() << " file has been written.\n";
   } /*}}}*/
-
-  void arrayAppend(pt&, const pt&, const std::string& = "item") const {}
-
-  std::string getSuffix() const {
-    return std::string();
-  }
-
-  void writeFile(const std::filesystem::path&, const pt&) {}
 };
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
@@ -469,14 +546,14 @@ struct gmsh2xml { /*{{{*/
 ////////////////////////////////////////////////////////////////
 
 template <>
-void gmshParser<gmsh2json>::arrayAppend(pt&       _root, /*{{{*/
-                                        const pt& _child,
+void gmshParser<gmsh2json>::arrayAppend(ptree&       _root, /*{{{*/
+                                        const ptree& _child,
                                         const std::string&) const {
   _root.push_back(std::make_pair("", _child));
 } /*}}}*/
 template <>
-void gmshParser<gmsh2xml>::arrayAppend(pt&                _root, /*{{{*/
-                                       const pt&          _child,
+void gmshParser<gmsh2xml>::arrayAppend(ptree&             _root, /*{{{*/
+                                       const ptree&       _child,
                                        const std::string& _name) const {
   _root.add_child(_name, _child);
 } /*}}}*/
@@ -499,17 +576,17 @@ std::string gmshParser<gmsh2xml>::getSuffix() const { /*{{{*/
 template <>
 void gmshParser<gmsh2json>::writeFile(/*{{{*/
                                       const std::filesystem::path&
-                                                file_name_with_path,
-                                      const pt& _ptree) {
+                                                   file_name_with_path,
+                                      const ptree& _ptree) {
   boost::property_tree::write_json(
     file_name_with_path.string() + "." + getSuffix(), _ptree);
 } /*}}}*/
 template <>
 void gmshParser<gmsh2xml>::writeFile(/*{{{*/
                                      const std::filesystem::path&
-                                               file_name_with_path,
-                                     const pt& _ptree) {
-  pt root;
+                                                  file_name_with_path,
+                                     const ptree& _ptree) {
+  ptree root;
   root.add_child("geoxfem_input", _ptree);
   boost::property_tree::write_xml(
     file_name_with_path.string() + "." + getSuffix(), root);
